@@ -16,6 +16,7 @@ import {
 
 import { Cursor } from "@/components/landing/Cursor";
 import { HeroParticles } from "@/components/landing/HeroParticles";
+import { HeroNoiseShader } from "@/components/landing/HeroNoiseShader";
 import { SplitText, SplitLine } from "@/components/landing/SplitText";
 import { easeExpo, springGentle } from "@/lib/motion";
 
@@ -773,6 +774,338 @@ function HowItWorks() {
   );
 }
 
+// ─── AnimatedCounter ─────────────────────────────────────────────────────────
+// GSAP-driven number increment that fires once on scroll-enter.
+// The tick is attached to GSAP's internal ticker so it stays in sync with Lenis.
+
+function AnimatedCounter({
+  to,
+  duration = 1.8,
+  prefix = "",
+  suffix = "",
+}: { to: number; duration?: number; prefix?: string; suffix?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obj = { val: 0 };
+    el.textContent = prefix + "0" + suffix;
+
+    const trigger = ScrollTrigger.create({
+      trigger: el, start: "top 88%", once: true,
+      onEnter: () => {
+        gsap.to(obj, {
+          val: to, duration, ease: "expo.out",
+          onUpdate: () => {
+            el.textContent = prefix + Math.round(obj.val).toLocaleString() + suffix;
+          },
+        });
+      },
+    });
+    return () => trigger.kill();
+  }, [to, duration, prefix, suffix]);
+
+  return <span ref={ref} />;
+}
+
+// ─── StatsBand ────────────────────────────────────────────────────────────────
+
+const STATS_DATA = [
+  { value: 2,   suffix: "s",  label: "average generation time" },
+  { value: 8,   suffix: "",   label: "viral slide formats built-in" },
+  { value: 3,   suffix: "×",  label: "more saves vs. single images" },
+  { value: 500, suffix: "+",  label: "carousels shipped this week" },
+];
+
+function StatsBand() {
+  return (
+    <section
+      style={{
+        borderTop: "1px solid rgba(255,255,255,0.04)",
+        borderBottom: "1px solid rgba(255,255,255,0.04)",
+      }}
+    >
+      <div className="max-w-5xl mx-auto px-4 py-20">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
+          {STATS_DATA.map(({ value, suffix, label }, i) => (
+            <FadeUp key={label} delay={i * 0.07}>
+              <div className="text-center">
+                <div
+                  className="font-black leading-none mb-3"
+                  style={{
+                    fontFamily: "var(--font-bebas)",
+                    fontSize: "clamp(3.5rem,7vw,6rem)",
+                    color: i % 2 === 0 ? "#00C2A8" : "#7C3AED",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  <AnimatedCounter to={value} suffix={suffix} />
+                </div>
+                <p
+                  className="text-[13px] leading-snug"
+                  style={{ color: "rgba(255,255,255,0.32)", fontFamily: DM }}
+                >
+                  {label}
+                </p>
+              </div>
+            </FadeUp>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── HorizontalProcess — pinned GSAP horizontal scroll ───────────────────────
+//
+// This is the scene that separates "$50K sites" from "$8K sites":
+// The entire section scrolls HORIZONTALLY while vertical scroll position stays
+// pinned. Each panel = one step of the process.
+//
+// Technique: GSAP ScrollTrigger pin + scrub, animating track.x from 0 → -(totalWidth).
+// Lenis stays in sync because we run: lenis.on("scroll", ScrollTrigger.update).
+//
+// Each step has:
+//   - Giant Bebas Neue watermark number (opacity 0.035) — the soul of the section
+//   - Two-column layout: editorial copy left, rotating MockCard right
+//   - Step progress indicator at the bottom of the copy column
+
+const PROCESS_STEPS: Array<{
+  num: string; label: string; accent: string;
+  title: string; body: string;
+  card: { type: string; accent: string; headline: string; sub?: string; slideNum: number; totalSlides: number };
+}> = [
+  {
+    num: "01", label: "Input", accent: "#00C2A8",
+    title: "Drop your\nraw idea",
+    body: "Type a topic, paste an article URL, or drop a YouTube transcript. Scrollr strips the noise and extracts every angle worth posting about.",
+    card: { type: "HOOK", accent: "#00C2A8", headline: "5 habits that tripled my LinkedIn reach in 30 days", slideNum: 1, totalSlides: 6 },
+  },
+  {
+    num: "02", label: "Generate", accent: "#7C3AED",
+    title: "Claude writes\nevery slide",
+    body: "Hook opens with a curiosity gap. Body slides run under 22 words. Each format — stat, tip, quote, checklist — is calibrated for saves, not impressions.",
+    card: { type: "STAT", accent: "#7C3AED", headline: "87%", sub: "of top posts start with a curiosity-gap hook", slideNum: 3, totalSlides: 6 },
+  },
+  {
+    num: "03", label: "Refine", accent: "#F59E0B",
+    title: "Tune it\nto your voice",
+    body: "Inline edits in one click. Rephrase a slide. Swap the accent colour. Style Library remembers every brand signal you've ever uploaded.",
+    card: { type: "TIP", accent: "#F59E0B", headline: "Post at 7am on weekdays", sub: "Peak LinkedIn hours — 3× more reach than afternoons.", slideNum: 2, totalSlides: 6 },
+  },
+  {
+    num: "04", label: "Export", accent: "#F43F5E",
+    title: "Post it.\nWatch it spread.",
+    body: "High-res PNGs. ZIP download. Drag straight into Buffer, Later, or LinkedIn's scheduler. Done before your coffee cools.",
+    card: { type: "CTA", accent: "#F43F5E", headline: "Follow for weekly growth frameworks that actually work.", slideNum: 6, totalSlides: 6 },
+  },
+];
+
+function HorizontalProcess() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const trackRef     = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const track     = trackRef.current;
+    if (!container || !track) return;
+
+    const mm = gsap.matchMedia();
+    mm.add("(min-width: 768px)", () => {
+      const totalWidth = track.scrollWidth - container.offsetWidth;
+      if (totalWidth <= 0) return;
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: container,
+          start:   "top top",
+          end:     () => `+=${totalWidth + window.innerHeight * 0.5}`,
+          pin:      true,
+          scrub:    1.2,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+        },
+      });
+      tl.to(track, { x: () => -totalWidth, ease: "none" });
+
+      return () => { tl.scrollTrigger?.kill(); tl.kill(); };
+    });
+
+    return () => mm.revert();
+  }, []);
+
+  return (
+    <section
+      id="how"
+      ref={containerRef}
+      className="relative overflow-x-hidden md:overflow-hidden"
+      style={{ minHeight: "100svh", background: "#040404" }}
+    >
+      {/* Fixed section label — doesn't scroll */}
+      <div className="absolute top-8 left-8 z-10 hidden md:block">
+        <p
+          className="text-[11px] uppercase tracking-[0.28em] font-black"
+          style={{ color: "rgba(255,255,255,0.16)", fontFamily: DM }}
+        >
+          How it works
+        </p>
+      </div>
+
+      {/* Horizontal track — GSAP animates x on desktop; flex-col on mobile */}
+      <div
+        ref={trackRef}
+        className="flex flex-col md:flex-row h-full"
+        style={{ width: `${PROCESS_STEPS.length * 100}vw` }}
+      >
+        {PROCESS_STEPS.map((step, i) => (
+          <div
+            key={step.num}
+            className="relative flex items-center flex-shrink-0"
+            style={{
+              width:     "100vw",
+              minHeight: "80svh",
+              height:    "100svh",
+              padding:   "0 clamp(2rem,8vw,8rem)",
+            }}
+          >
+            {/* ── Giant Bebas Neue watermark ────────────────────────────── */}
+            {/* The number is SO large it wraps the entire panel.
+                This is the "one thing people remember." */}
+            <div
+              className="absolute select-none pointer-events-none"
+              style={{
+                top: "50%", left: "-4vw",
+                transform: "translateY(-50%)",
+                fontFamily: "var(--font-bebas)",
+                fontSize: "48vw",
+                color: step.accent,
+                opacity: 0.032,
+                lineHeight: 0.85,
+                letterSpacing: "-0.05em",
+                userSelect: "none",
+              }}
+              aria-hidden
+            >
+              {step.num}
+            </div>
+
+            {/* ── Two-column layout ─────────────────────────────────────── */}
+            <div className="relative w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+
+              {/* Left — editorial copy */}
+              <div>
+                {/* Step meta row */}
+                <div className="flex items-center gap-3 mb-8">
+                  <span
+                    style={{
+                      fontFamily: "var(--font-bebas)",
+                      fontSize: "1.05rem",
+                      color: step.accent,
+                      letterSpacing: "0.1em",
+                    }}
+                  >
+                    {step.num}
+                  </span>
+                  <div style={{ height: "1px", width: 36, background: `${step.accent}44` }} />
+                  <span
+                    className="uppercase tracking-[0.24em] text-[10px] font-black"
+                    style={{ color: "rgba(255,255,255,0.3)", fontFamily: DM }}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+
+                {/* Heading — Bricolage Grotesque tight */}
+                <h2
+                  className="font-black leading-[0.95] mb-6"
+                  style={{
+                    fontFamily: BG,
+                    fontSize: "clamp(2.8rem,5vw,4.5rem)",
+                    letterSpacing: "-0.04em",
+                    whiteSpace: "pre-line",
+                  }}
+                >
+                  {step.title}
+                </h2>
+
+                {/* Body */}
+                <p
+                  className="leading-relaxed mb-10"
+                  style={{ fontFamily: DM, fontSize: "1.0625rem", color: "rgba(255,255,255,0.42)", maxWidth: 440 }}
+                >
+                  {step.body}
+                </p>
+
+                {/* Progress dots — width animates via CSS on the active dot */}
+                <div className="flex items-center gap-2">
+                  {PROCESS_STEPS.map((_, j) => (
+                    <div
+                      key={j}
+                      style={{
+                        width:        j === i ? 28 : 5,
+                        height:       2.5,
+                        borderRadius: 999,
+                        background:   j === i ? step.accent : "rgba(255,255,255,0.1)",
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Right — rotating MockCard with drop-shadow glow */}
+              <div className="hidden md:flex justify-center items-center">
+                <div
+                  style={{
+                    transform: `rotate(${i % 2 === 0 ? 3 : -3}deg)`,
+                    filter: `drop-shadow(0 32px 64px ${step.accent}28)`,
+                  }}
+                >
+                  <MockCard
+                    type={step.card.type}
+                    accent={step.card.accent}
+                    headline={step.card.headline}
+                    sub={step.card.sub}
+                    slideNum={step.card.slideNum}
+                    totalSlides={step.card.totalSlides}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right-edge divider between panels */}
+            {i < PROCESS_STEPS.length - 1 && (
+              <div
+                className="absolute right-0 top-1/2 -translate-y-1/2 hidden md:flex flex-col items-center gap-1 pr-5"
+                style={{ height: 80 }}
+              >
+                <div style={{ width: "1px", flex: 1, background: "rgba(255,255,255,0.06)" }} />
+                <span
+                  className="text-[9px] tracking-[0.2em]"
+                  style={{ color: "rgba(255,255,255,0.12)", fontFamily: DM }}
+                >→</span>
+                <div style={{ width: "1px", flex: 1, background: "rgba(255,255,255,0.06)" }} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom scroll hint */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden md:flex items-center gap-3">
+        <div style={{ width: 24, height: "1px", background: "rgba(255,255,255,0.1)" }} />
+        <span
+          className="text-[10px] tracking-[0.22em] uppercase font-medium"
+          style={{ color: "rgba(255,255,255,0.18)", fontFamily: DM }}
+        >
+          Scroll to explore
+        </span>
+        <div style={{ width: 24, height: "1px", background: "rgba(255,255,255,0.1)" }} />
+      </div>
+    </section>
+  );
+}
+
 // ─── FeaturesBento ────────────────────────────────────────────────────────────
 
 const BENTO_FEATURES = [
@@ -1470,6 +1803,12 @@ export default function LandingPage() {
         {/* ── Layer 0: WebGL particle field (slowest — opposite to mouse) ─── */}
         <HeroParticles className="z-0" />
 
+        {/* ── Layer 0.5: GLSL simplex-noise aurora — the section that makes ──
+              people screenshot and say "how did they do that?"
+              3-octave fBm noise, teal→violet colour map, radial vignette.
+              Composited additive over particles — transparent canvas.        ─── */}
+        <HeroNoiseShader className="z-0" />
+
         {/* ── Layer 1: Background grid + glow (slow parallax) ────────────── */}
         <motion.div
           className="absolute inset-0 bg-grid bg-grid-fade pointer-events-none"
@@ -1698,6 +2037,9 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* ── Stats band — by the numbers ──────────────────────────────────── */}
+      <StatsBand />
+
       {/* ── Pinned scene ─────────────────────────────────────────────────── */}
       <div className="clip-reveal">
         <PinnedScene />
@@ -1720,10 +2062,10 @@ export default function LandingPage() {
         <DemoSection />
       </div>
 
-      {/* ── How it works ─────────────────────────────────────────────────── */}
-      <div className="clip-reveal">
-        <HowItWorks />
-      </div>
+      {/* ── Horizontal process — GSAP pin + xPercent scroll ──────────────── */}
+      {/* This replaces HowItWorks with a full-bleed cinematic horizontal     */}
+      {/* scroll scene. Giant Bebas numbers. Cards floating in perspective.   */}
+      <HorizontalProcess />
 
       {/* ── Features bento ───────────────────────────────────────────────── */}
       <FeaturesBento />

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SlideWrapper } from "@/components/slides/slide-wrapper";
 import type { CarouselSpec } from "@/types/carousel";
+import { SLIDE_DIMENSIONS } from "@/types/carousel";
 import { toPng } from "html-to-image";
 import JSZip from "jszip";
 import { toast } from "sonner";
