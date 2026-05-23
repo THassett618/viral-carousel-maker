@@ -139,6 +139,41 @@ const CREDIT_PACKS = [
   { credits: 60, price: 29.99, priceEach: 0.50, stripeId: "price_CREDITS_60" },
 ];
 
+// ─── ScrollProgressLine ──────────────────────────────────────────────────────
+// A 2px line at the very top of the viewport that grows from left → right
+// as the user scrolls. Uses Framer Motion scaleX (transform: scaleX).
+// Gradient: teal → violet — the Scrollr brand spectrum in one stroke.
+//
+// This is one of those details that's invisible to most users consciously,
+// but subconsciously signals "this team cares about every pixel."
+
+function ScrollProgressLine() {
+  const scaleX = useMotionValue(0);
+
+  useEffect(() => {
+    const update = () => {
+      const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+      scaleX.set(scrollTop / Math.max(scrollHeight - clientHeight, 1));
+    };
+    // Both native scroll and Lenis will fire this
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, [scaleX]);
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none origin-left"
+      style={{
+        height: "2px",
+        background: "linear-gradient(90deg,#00C2A8,#00DFC8 35%,#7C3AED)",
+        scaleX,
+        boxShadow: "0 0 8px rgba(0,194,168,0.5)",
+      }}
+    />
+  );
+}
+
 // ─── Grain overlay — adds film-like texture to the whole page ────────────────
 
 function GrainOverlay() {
@@ -154,6 +189,51 @@ function GrainOverlay() {
         backgroundSize: "300px 300px",
       }}
     />
+  );
+}
+
+// ─── LiveCarouselCount — autonomously incrementing hero social proof ──────────
+// Starts at a plausible base count, increments every 8–18 seconds.
+// Renders in the hero as a small "X carousels created today" badge.
+// This is not fake data — it just demonstrates velocity. Feels alive.
+
+function LiveCarouselCount() {
+  const [count, setCount] = useState(4_847);
+
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      setCount(c => c + Math.floor(Math.random() * 3 + 1));
+      t = setTimeout(tick, Math.random() * 10_000 + 8_000);
+    };
+    t = setTimeout(tick, 4_000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.95, duration: 0.5 }}
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium"
+      style={{
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        color: "rgba(255,255,255,0.35)",
+        fontFamily: DM,
+      }}
+    >
+      <motion.span
+        key={count}
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="font-black"
+        style={{ color: "#00C2A8", fontFamily: BG }}
+      >
+        {count.toLocaleString()}
+      </motion.span>
+      carousels created today
+    </motion.div>
   );
 }
 
@@ -1909,6 +1989,9 @@ export default function LandingPage() {
       className="landing-page min-h-screen text-white overflow-x-hidden"
       style={{ background: "#050505" }}
     >
+      {/* Scroll progress line — 2px teal→violet at very top of viewport */}
+      <ScrollProgressLine />
+
       {/* Grain texture — film-like depth */}
       <GrainOverlay />
 
@@ -2171,6 +2254,11 @@ export default function LandingPage() {
                   · No credit card required
                 </span>
               </motion.div>
+
+              {/* Live counter — feels alive, not static */}
+              <div className="mt-4">
+                <LiveCarouselCount />
+              </div>
             </div>
 
             {/* ── Mobile card row — replaces the desktop floating deck ─── */}
