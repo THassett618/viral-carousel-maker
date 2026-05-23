@@ -149,6 +149,110 @@ const CREDIT_PACKS = [
   { credits: 60, price: 29.99, priceEach: 0.50, stripeId: "price_CREDITS_60" },
 ];
 
+// ─── PageIntro ────────────────────────────────────────────────────────────────
+//
+// The opener. The moment before the site begins.
+// A full-screen overlay showing the Scrollr logo + wordmark + a progress bar.
+// After 1.5s it flies UP (translateY -100%) revealing the hero below.
+//
+// Why this matters: the first thing a user perceives sets the frame for
+// everything that follows. A cinematic intro tells them "this is different"
+// before they've read a single word.
+//
+// UX: total duration ≤ 1.6s. Never annoying. Always resolving.
+
+function PageIntro({ onDone }: { onDone: () => void }) {
+  const lineRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Animate progress line 0 → 100% over 1.1s then trigger onDone at 1.5s
+    if (lineRef.current) {
+      gsap.fromTo(lineRef.current, { scaleX: 0 }, {
+        scaleX: 1, duration: 1.1, ease: "expo.out",
+        transformOrigin: "left center",
+      });
+    }
+    const t = setTimeout(onDone, 1500);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <motion.div
+      className="fixed inset-0 flex items-center justify-center flex-col gap-5"
+      style={{
+        background: "#050505",
+        zIndex: 999999,
+        // Grain texture for consistency with the rest of the page
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
+      }}
+      exit={{
+        y: "-100%",
+        transition: { duration: 0.72, ease: [0.7, 0, 0.3, 1], delay: 0.05 },
+      }}
+    >
+      {/* Logo */}
+      <motion.div
+        className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl text-black select-none"
+        style={{
+          background: "linear-gradient(135deg,#00C2A8,#00DFC8)",
+          boxShadow: "0 0 40px rgba(0,194,168,0.4), 0 0 80px rgba(0,194,168,0.12)",
+          fontFamily: "var(--font-bricolage)",
+        }}
+        initial={{ scale: 0.4, opacity: 0, filter: "blur(12px)" }}
+        animate={{ scale: 1,   opacity: 1, filter: "blur(0px)" }}
+        transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      >
+        S
+      </motion.div>
+
+      {/* Wordmark — masked slide-up */}
+      <div style={{ overflow: "hidden", lineHeight: 1 }}>
+        <motion.p
+          className="font-black text-[1.6rem] tracking-tight"
+          style={{ fontFamily: "var(--font-bricolage)", letterSpacing: "-0.03em" }}
+          initial={{ y: "115%", opacity: 0 }}
+          animate={{ y:    "0%", opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+        >
+          Scrollr
+        </motion.p>
+      </div>
+
+      {/* Tagline */}
+      <motion.p
+        className="text-[11px] uppercase tracking-[0.3em] font-medium"
+        style={{ color: "rgba(255,255,255,0.22)", fontFamily: "var(--font-dm-sans)" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.38 }}
+      >
+        AI Carousel Generator
+      </motion.p>
+
+      {/* Progress bar */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0, left: 0, right: 0,
+          height: "1.5px",
+          background: "rgba(255,255,255,0.06)",
+        }}
+      >
+        <div
+          ref={lineRef}
+          style={{
+            height: "100%",
+            background: "linear-gradient(90deg,#00C2A8,#7C3AED)",
+            transformOrigin: "left center",
+            transform: "scaleX(0)",
+            boxShadow: "0 0 8px rgba(0,194,168,0.5)",
+          }}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── ScrollProgressLine ──────────────────────────────────────────────────────
 // A 2px line at the very top of the viewport that grows from left → right
 // as the user scrolls. Uses Framer Motion scaleX (transform: scaleX).
@@ -1933,6 +2037,7 @@ function FinalCTA() {
 
 export default function LandingPage() {
   const pageRef = useRef<HTMLDivElement>(null);
+  const [introVisible, setIntroVisible] = useState(true);
 
   // Mouse position for hero parallax
   const mouseX = useMotionValue(0.5);
@@ -2026,6 +2131,14 @@ export default function LandingPage() {
   const SLIDE_TYPES = ["Hook", "Checklist", "Quote", "Stat", "Before / After", "Tip", "CTA", "Body"];
 
   return (
+    <>
+      {/* ── Page intro — flies up after 1.5s, revealing the hero ─────────── */}
+      <AnimatePresence>
+        {introVisible && (
+          <PageIntro onDone={() => setIntroVisible(false)} />
+        )}
+      </AnimatePresence>
+
     <div
       ref={pageRef}
       className="landing-page min-h-screen text-white overflow-x-hidden"
@@ -2487,5 +2600,6 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+    </>
   );
 }
