@@ -1363,23 +1363,50 @@ const TESTIMONIALS = [
 function TestimonialCard({
   quote, name, role, accent, initial, featured = false, delay = 0,
 }: (typeof TESTIMONIALS)[0] & { delay?: number }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!featured) return;
+    const el = cardRef.current;
+    if (!el) return;
+    const qRotX = gsap.quickTo(el, "rotateX", { duration: 0.5, ease: "power2.out" });
+    const qRotY = gsap.quickTo(el, "rotateY", { duration: 0.5, ease: "power2.out" });
+    const onMove = (e: MouseEvent) => {
+      const r = el.getBoundingClientRect();
+      qRotY( (e.clientX - r.left - r.width  / 2) / (r.width  / 2) * 6);
+      qRotX(-(e.clientY - r.top  - r.height / 2) / (r.height / 2) * 5);
+    };
+    const onLeave = () => { qRotX(0); qRotY(0); };
+    el.addEventListener("mousemove",  onMove);
+    el.addEventListener("mouseleave", onLeave);
+    return () => {
+      el.removeEventListener("mousemove",  onMove);
+      el.removeEventListener("mouseleave", onLeave);
+    };
+  }, [featured]);
+
   return (
     <FadeUp delay={delay}>
       <div
+        ref={cardRef}
         className="relative h-full p-7 rounded-3xl flex flex-col overflow-hidden group"
         style={{
-          background:  featured
+          background: featured
             ? `linear-gradient(150deg,${accent}0E 0%,rgba(0,0,0,0) 60%)`
             : "rgba(255,255,255,0.02)",
           border: `1px solid ${featured ? `${accent}28` : "rgba(255,255,255,0.06)"}`,
           transition: "transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s ease",
+          transformStyle: featured ? "preserve-3d" : undefined,
+          perspective: featured ? "900px" : undefined,
         }}
         onMouseEnter={e => {
+          if (featured) return; // GSAP handles featured
           const el = e.currentTarget as HTMLElement;
           el.style.transform = "translateY(-5px) scale(1.006)";
           el.style.boxShadow = `0 24px 60px rgba(0,0,0,0.28), 0 0 0 1px ${accent}18`;
         }}
         onMouseLeave={e => {
+          if (featured) return;
           const el = e.currentTarget as HTMLElement;
           el.style.transform = "";
           el.style.boxShadow = "";
@@ -1579,7 +1606,8 @@ function PricingSection() {
             const isChecking = checkingOut === plan.name;
             return (
               <SlideIn key={plan.name} from={i === 0 ? "left" : i === 2 ? "right" : "left"} delay={i * 0.08}>
-                <div className="relative p-7 rounded-3xl h-full flex flex-col"
+                <div
+                  className={`relative p-7 rounded-3xl h-full flex flex-col${plan.highlight ? " pro-card-shine" : ""}`}
                   style={{
                     background: plan.highlight
                       ? `linear-gradient(150deg,${plan.accent}10 0%,transparent 55%)`
@@ -1934,19 +1962,23 @@ export default function LandingPage() {
       gsap.to(".hero-copy",  { y: "-10%", ease: "none", scrollTrigger: heroTrigger });
       gsap.to(".hero-cards", { y: "-20%", ease: "none", scrollTrigger: { ...heroTrigger, scrub: 0.9 } });
 
-      // ── Variable font-weight animation — the hero heading tightens as you
-      //    scroll away, like the subject receding into the background.
-      //    Bricolage Grotesque: weight 200 (ultra-thin) → 900 (ultra-black).
-      //    On load = 900 (impactful). On scroll-out = 200 (ghosting away).
-      gsap.fromTo(
-        ".hero-copy",
-        { fontVariationSettings: "'wght' 900" },
-        {
-          fontVariationSettings: "'wght' 200",
-          ease: "none",
+      // ── Variable font-weight animation — the hero heading's weight bleeds
+      //    from 900 (bold, punchy) to 200 (thin, ghosting) as it scrolls
+      //    out of view. Like the camera losing focus on the subject.
+      //    Bricolage Grotesque supports 200–900 along the 'wght' axis.
+      //    GSAP can't interpolate CSS fontVariationSettings strings directly,
+      //    so we tween a plain object and apply it in onUpdate.
+      const fontWeightObj = { w: 900 };
+      const copyEl = document.querySelector(".hero-copy") as HTMLElement | null;
+      if (copyEl) {
+        gsap.fromTo(fontWeightObj, { w: 900 }, {
+          w: 200, ease: "none",
+          onUpdate: () => {
+            copyEl.style.fontVariationSettings = `'wght' ${Math.round(fontWeightObj.w)}`;
+          },
           scrollTrigger: { trigger: ".hero-section", start: "20% top", end: "90% top", scrub: 2 },
-        }
-      );
+        });
+      }
 
       // ── Clip-path section reveals ──────────────────────────────────────────
       // Each .clip-reveal section slides out from behind a clipping mask.

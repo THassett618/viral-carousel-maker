@@ -223,6 +223,40 @@ html {
   will-change: clip-path;
 }
 
+/* ─── Pro card shine sweep ───────────────────────────────────────────────── */
+/* A single light streak passes over the Pro pricing card every 4 seconds.
+   Pure CSS — no JS. The shimmer is positioned via ::before on .pro-card-shine.
+   Runs once on mount, then loops with a long pause between sweeps.           */
+@keyframes card-shine {
+  0%   { left: -80%; opacity: 0; }
+  10%  { opacity: 1; }
+  50%  { left: 110%; opacity: 0.7; }
+  51%, 100% { left: 110%; opacity: 0; }
+}
+
+.pro-card-shine {
+  position: relative;
+  overflow: hidden;
+}
+.pro-card-shine::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  left: -80%;
+  width: 40%;
+  height: 140%;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255,255,255,0.055) 50%,
+    transparent 80%
+  );
+  transform: skewX(-15deg);
+  animation: card-shine 4.5s ease-in-out 1.5s infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
 /* ─── Scroll indicator pulse ────────────────────────────────────────────── */
 @keyframes scroll-pulse {
   0%, 100% { opacity: 0.2; transform: scaleY(1); }
