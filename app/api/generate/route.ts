@@ -17,6 +17,10 @@ const schema = z.object({
   slideCount: z.number().int().min(3).max(15).optional(),
   brandName: z.string().optional(),
   useLibrary: z.boolean().optional(),
+  targetAudience: z.string().optional(),
+  offering: z.string().optional(),
+  goal: z.string().optional(),
+  chosenHook: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -26,6 +30,50 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // ── Credit / subscription gate ────────────────────────────────────────
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("plan")
+      .eq("id", user.id)
+      .single();
+    const plan = (profile?.plan ?? "free") as string;
+
+    if (plan === "free") {
+      const { data: spent } = await supabase.rpc("spend_credit", { p_user_id: user.id });
+      if (!spent) {
+        return NextResponse.json({ error: "insufficient_credits", plan }, { status: 402 });
+      }
+      await supabase.from("credit_transactions").insert({
+        user_id: user.id, amount: -1, type: "spend", description: "Carousel generation",
+      });
+    } else {
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("carousels_used, carousel_limit, status")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const subActive = sub?.status === "active" || sub?.status === "trialing";
+      const withinLimit = subActive && sub && sub.carousels_used < sub.carousel_limit;
+
+      if (withinLimit && sub) {
+        await supabase
+          .from("subscriptions")
+          .update({ carousels_used: sub.carousels_used + 1, updated_at: new Date().toISOString() })
+          .eq("user_id", user.id);
+      } else {
+        // Over limit or no active sub — fall back to credits
+        const { data: spent } = await supabase.rpc("spend_credit", { p_user_id: user.id });
+        if (!spent) {
+          return NextResponse.json({ error: "insufficient_credits", plan }, { status: 402 });
+        }
+        await supabase.from("credit_transactions").insert({
+          user_id: user.id, amount: -1, type: "spend", description: "Extra carousel (over limit)",
+        });
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     const body = await req.json();
     const input = schema.parse(body) as GenerateInput;

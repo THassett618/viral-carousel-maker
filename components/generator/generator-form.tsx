@@ -19,11 +19,12 @@ import {
   ChevronDown,
   ChevronUp,
   BookImage,
+  Target,
 } from "lucide-react";
 
 interface Props {
-  onGenerate: (input: GenerateInput) => void;
-  isGenerating: boolean;
+  onGenerateHooks: (input: GenerateInput) => void;
+  isGeneratingHooks: boolean;
   hasLibrary: boolean;
 }
 
@@ -42,7 +43,7 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: "minimal", label: "Minimal" },
 ];
 
-export function GeneratorForm({ onGenerate, isGenerating, hasLibrary }: Props) {
+export function GeneratorForm({ onGenerateHooks, isGeneratingHooks, hasLibrary }: Props) {
   const [mode, setMode] = useState<InputMode>("topic");
   const [topic, setTopic] = useState("");
   const [url, setUrl] = useState("");
@@ -55,10 +56,14 @@ export function GeneratorForm({ onGenerate, isGenerating, hasLibrary }: Props) {
   const [slideCount, setSlideCount] = useState(7);
   const [useLibrary, setUseLibrary] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showIcp, setShowIcp] = useState(false);
+  const [targetAudience, setTargetAudience] = useState("");
+  const [offering, setOffering] = useState("");
+  const [goal, setGoal] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onGenerate({
+    onGenerateHooks({
       topic: mode === "topic" ? topic : undefined,
       url: mode === "url" ? url : undefined,
       rawText: mode === "text" ? text : undefined,
@@ -68,6 +73,9 @@ export function GeneratorForm({ onGenerate, isGenerating, hasLibrary }: Props) {
       slideCount,
       brandName: brandName || undefined,
       useLibrary,
+      targetAudience: targetAudience || undefined,
+      offering: offering || undefined,
+      goal: goal || undefined,
     });
   };
 
@@ -137,6 +145,68 @@ export function GeneratorForm({ onGenerate, isGenerating, hasLibrary }: Props) {
               className="text-sm min-h-[120px] resize-none"
             />
           </>
+        )}
+      </div>
+
+      {/* ICP targeting (optional) */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowIcp((v) => !v)}
+          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Target className="w-3.5 h-3.5" />
+          {showIcp ? "Hide" : "Add"} audience context
+          <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+            optional
+          </span>
+          {showIcp ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </button>
+
+        {showIcp && (
+          <div className="mt-3 space-y-3 p-3 rounded-xl bg-muted/20 border border-border">
+            <p className="text-[10px] text-muted-foreground">
+              Helps Claude write sharper hooks and a more targeted CTA.
+            </p>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Who are you writing for?</Label>
+              <Input
+                placeholder="e.g. SaaS founders, fitness coaches, freelancers"
+                value={targetAudience}
+                onChange={(e) => setTargetAudience(e.target.value)}
+                className="text-xs h-8"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">What are you selling / promoting?</Label>
+              <Input
+                placeholder="e.g. My consulting, a new course, nothing — just building audience"
+                value={offering}
+                onChange={(e) => setOffering(e.target.value)}
+                className="text-xs h-8"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Goal of this carousel</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {["Get follows", "Build authority", "Drive DMs", "Sell something", "Grow email list"].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGoal(goal === g ? "" : g)}
+                    className={cn(
+                      "text-[10px] px-2.5 py-1 rounded-full border transition-all",
+                      goal === g
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border text-muted-foreground hover:border-primary/40"
+                    )}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -301,12 +371,21 @@ export function GeneratorForm({ onGenerate, isGenerating, hasLibrary }: Props) {
 
       <Button
         type="submit"
-        disabled={!isValid || isGenerating}
+        disabled={!isValid || isGeneratingHooks}
         className="w-full gap-2 font-bold"
         size="lg"
       >
-        <Sparkles className="w-4 h-4" />
-        {isGenerating ? "Generating..." : "Generate Carousel"}
+        {isGeneratingHooks ? (
+          <>
+            <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            Writing hooks...
+          </>
+        ) : (
+          <>
+            <Sparkles className="w-4 h-4" />
+            Generate Hook Options →
+          </>
+        )}
       </Button>
     </form>
   );

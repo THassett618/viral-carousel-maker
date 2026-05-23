@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import Link from "next/link";
-import { motion, useInView, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   Sparkles, ArrowRight, BookImage, Download, Zap,
-  BarChart3, ListChecks, Check, Gift, Users,
-  ChevronRight,
+  BarChart3, ListChecks, Check, Users, ChevronRight,
 } from "lucide-react";
 
-// ─── Body font shorthand ──────────────────────────────────────────────────────
+gsap.registerPlugin(ScrollTrigger);
+
 const DM = "var(--font-dm-sans)";
 const BG = "var(--font-bricolage)";
 
@@ -64,12 +66,11 @@ function pickPreset(input: string) {
   if (lower.match(/linkedin|follow|audience|reach|social|content creator/)) return DEMO_PRESETS.linkedin;
   if (lower.match(/morning|routine|habit|productivity|wake|sleep|focus/)) return DEMO_PRESETS.productivity;
   if (lower.match(/ai|tool|gpt|prompt|claude|chatgpt|tech|software/)) return DEMO_PRESETS.ai;
-  // deterministic fallback by string length
   const keys = Object.keys(DEMO_PRESETS);
   return DEMO_PRESETS[keys[input.length % keys.length]];
 }
 
-// ─── Showcase slide pool (two rows, different content) ────────────────────────
+// ─── Showcase slide pool ──────────────────────────────────────────────────────
 
 const SHOWCASE_ROW_1: DemoSlide[] = [
   { type: "HOOK", accent: "#00C2A8", headline: "7 content frameworks that built 100K+ audiences", slideNum: 1 },
@@ -185,42 +186,59 @@ const CREDIT_PACKS = [
   { credits: 60, price: 29.99, priceEach: 0.50, stripeId: "price_CREDITS_60" },
 ];
 
-// ─── Utility components ───────────────────────────────────────────────────────
+// ─── FadeUp — GSAP ScrollTrigger version ─────────────────────────────────────
 
 function FadeUp({
   children, delay = 0, className,
 }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-50px" });
-  return (
-    <motion.div ref={ref} className={className}
-      initial={{ opacity: 0, y: 32 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.65, ease: [0.21, 0.47, 0.32, 0.98], delay }}
-    >
-      {children}
-    </motion.div>
-  );
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    gsap.set(el, { opacity: 0, y: 36 });
+    const trigger = ScrollTrigger.create({
+      trigger: el,
+      start: "top 88%",
+      once: true,
+      onEnter: () =>
+        gsap.to(el, {
+          opacity: 1, y: 0, duration: 0.72, delay,
+          ease: "power3.out", clearProps: "y",
+        }),
+    });
+    return () => trigger.kill();
+  }, [delay]);
+  return <div ref={ref} className={className}>{children}</div>;
 }
+
+// ─── SlideIn — GSAP 3D rotateY version ───────────────────────────────────────
 
 function SlideIn({
   children, from = "left", delay = 0, className,
 }: { children: React.ReactNode; from?: "left" | "right"; delay?: number; className?: string }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-  const x = from === "left" ? -70 : 70;
-  return (
-    <motion.div ref={ref} className={className}
-      initial={{ opacity: 0, x }}
-      animate={inView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.7, ease: [0.21, 0.47, 0.32, 0.98], delay }}
-    >
-      {children}
-    </motion.div>
-  );
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const xOff = from === "left" ? -64 : 64;
+    const rY = from === "left" ? -14 : 14;
+    gsap.set(el, { opacity: 0, x: xOff, rotateY: rY, transformPerspective: 900 });
+    const trigger = ScrollTrigger.create({
+      trigger: el,
+      start: "top 87%",
+      once: true,
+      onEnter: () =>
+        gsap.to(el, {
+          opacity: 1, x: 0, rotateY: 0, duration: 0.82, delay,
+          ease: "power3.out", clearProps: "x,rotateY,transformPerspective",
+        }),
+    });
+    return () => trigger.kill();
+  }, [from, delay]);
+  return <div ref={ref} className={className}>{children}</div>;
 }
 
-// ─── MockCard ────────────────────────────────────────────────────────────────
+// ─── MockCard ─────────────────────────────────────────────────────────────────
 
 function MockCard({
   type, accent, headline, sub, slideNum = 1, totalSlides = 6, compact = false,
@@ -271,60 +289,210 @@ function MockCard({
   );
 }
 
-// ─── 3D Tilt wrapper ──────────────────────────────────────────────────────────
+// ─── DeepCardDeck — GSAP quickTo mouse parallax + floating timelines ──────────
 
-function Tilt3D({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+function DeepCardDeck() {
+  const deckRef = useRef<HTMLDivElement>(null);
+  const backFloatRef = useRef<HTMLDivElement>(null);
+  const midFloatRef = useRef<HTMLDivElement>(null);
+  const frontFloatRef = useRef<HTMLDivElement>(null);
 
-  const onMove = (e: React.MouseEvent) => {
-    if (!ref.current) return;
-    const r = ref.current.getBoundingClientRect();
-    setTilt({
-      x: -((e.clientY - r.top - r.height / 2) / (r.height / 2)) * 9,
-      y: ((e.clientX - r.left - r.width / 2) / (r.width / 2)) * 11,
+  useLayoutEffect(() => {
+    const deck = deckRef.current;
+    if (!deck) return;
+
+    // Per-card floating timelines with different phase/amplitude
+    const tlBack = gsap.to(backFloatRef.current, {
+      y: -14, duration: 5.5, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 0.9,
     });
-  };
+    const tlMid = gsap.to(midFloatRef.current, {
+      y: -18, duration: 4.7, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 0.4,
+    });
+    const tlFront = gsap.to(frontFloatRef.current, {
+      y: -11, duration: 4.2, yoyo: true, repeat: -1, ease: "sine.inOut",
+    });
+
+    // GSAP quickTo for butter-smooth perspective tilt on mouse move
+    const qRotX = gsap.quickTo(deck, "rotateX", { duration: 0.55, ease: "power2.out" });
+    const qRotY = gsap.quickTo(deck, "rotateY", { duration: 0.55, ease: "power2.out" });
+
+    const onMove = (e: MouseEvent) => {
+      const r = deck.getBoundingClientRect();
+      const nx = (e.clientX - r.left - r.width / 2) / (r.width / 2);
+      const ny = (e.clientY - r.top - r.height / 2) / (r.height / 2);
+      qRotY(nx * 13);
+      qRotX(-ny * 10);
+    };
+    const onLeave = () => { qRotX(0); qRotY(0); };
+
+    deck.addEventListener("mousemove", onMove);
+    deck.addEventListener("mouseleave", onLeave);
+
+    return () => {
+      tlBack.kill(); tlMid.kill(); tlFront.kill();
+      deck.removeEventListener("mousemove", onMove);
+      deck.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
 
   return (
-    <div ref={ref} onMouseMove={onMove} onMouseLeave={() => setTilt({ x: 0, y: 0 })}
-      style={{
-        perspective: "900px",
-        transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-        transition: "transform 0.12s ease-out",
-        transformStyle: "preserve-3d",
-        willChange: "transform",
-      }}
-    >
-      {children}
+    <div ref={deckRef} className="relative w-80 h-[440px]"
+      style={{ perspective: "1100px", transformStyle: "preserve-3d", willChange: "transform" }}>
+      {/* Glow behind cards */}
+      <div className="absolute inset-0 pointer-events-none rounded-full"
+        style={{
+          background: "radial-gradient(ellipse 70% 60% at 50% 52%, rgba(0,194,168,0.22) 0%, transparent 70%)",
+          animation: "glow-pulse 4s ease-in-out infinite",
+        }} />
+      {/* Back card — deepest z-plane */}
+      <div className="absolute"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%) rotate(-10deg) translate(-38px,34px) translateZ(-80px)", zIndex: 1 }}>
+        <div ref={backFloatRef}>
+          <MockCard type="CTA" accent="#7C3AED" headline="Follow for weekly growth frameworks that actually work" slideNum={6} totalSlides={6} />
+        </div>
+      </div>
+      {/* Mid card */}
+      <div className="absolute"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%) rotate(-3deg) translate(-14px,13px) translateZ(-30px)", zIndex: 2 }}>
+        <div ref={midFloatRef}>
+          <MockCard type="STAT" accent="#F59E0B" headline="87%" sub="of top posts use a strong hook slide" slideNum={3} totalSlides={6} />
+        </div>
+      </div>
+      {/* Front card — closest to viewer */}
+      <div className="absolute"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%) rotate(4deg) translate(10px,-10px)", zIndex: 3 }}>
+        <div ref={frontFloatRef}>
+          <MockCard type="HOOK" accent="#00C2A8" headline="3 habits that doubled my LinkedIn reach in 30 days" slideNum={1} totalSlides={6} />
+        </div>
+      </div>
     </div>
   );
 }
 
-// ─── Showcase strip ───────────────────────────────────────────────────────────
+// ─── PinnedZoom — scroll-pinned depth scene ───────────────────────────────────
+
+function PinnedZoom() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const mm = gsap.matchMedia();
+    mm.add("(min-width: 768px)", () => {
+      // Set text invisible initially (GSAP will reveal on scroll)
+      gsap.set(".pz-tagline, .pz-sub", { opacity: 0, y: 36 });
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: el,
+          start: "top top",
+          end: "+=200%",
+          pin: true,
+          scrub: 1.2,
+          anticipatePin: 1,
+        },
+      });
+
+      tl
+        .from(".pz-center-card", { scale: 0.3, opacity: 0, duration: 1 })
+        .to(".pz-side-left",  { x: -180, opacity: 0, scale: 0.75, filter: "blur(6px)",  duration: 0.7 }, 0)
+        .to(".pz-side-right", { x:  180, opacity: 0, scale: 0.75, filter: "blur(6px)",  duration: 0.7 }, 0)
+        .to(".pz-far-left",   { x: -310, opacity: 0, filter: "blur(12px)", duration: 0.8 }, 0)
+        .to(".pz-far-right",  { x:  310, opacity: 0, filter: "blur(12px)", duration: 0.8 }, 0)
+        .to(".pz-tagline", { opacity: 1, y: 0, duration: 0.5 }, 0.65)
+        .to(".pz-sub",     { opacity: 1, y: 0, duration: 0.4 }, 0.82);
+
+      return () => {
+        tl.scrollTrigger?.kill();
+        tl.kill();
+      };
+    });
+
+    return () => mm.revert();
+  }, []);
+
+  return (
+    <section ref={sectionRef}
+      className="relative h-screen flex items-center justify-center overflow-hidden"
+      style={{ background: "#070707" }}>
+      {/* Soft glow */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse 55% 50% at 50% 55%, rgba(0,194,168,0.07) 0%, transparent 65%)",
+      }} />
+
+      {/* Far-left card (deepest depth) */}
+      <div className="pz-far-left absolute hidden md:block pointer-events-none"
+        style={{ left: "2%", top: "50%", transform: "translateY(-54%) scale(0.56)", opacity: 0.2, filter: "blur(2px)", zIndex: 1 }}>
+        <MockCard type="QUOTE" accent="#3B82F6" headline={`"Consistency\nbeats perfection."`} compact slideNum={4} totalSlides={6} />
+      </div>
+
+      {/* Left card */}
+      <div className="pz-side-left absolute hidden md:block pointer-events-none"
+        style={{ left: "11%", top: "50%", transform: "translateY(-50%) scale(0.76)", opacity: 0.5, zIndex: 2 }}>
+        <MockCard type="STAT" accent="#F59E0B" headline="87%" sub="of viral posts lead with a curiosity-gap hook" compact slideNum={2} totalSlides={6} />
+      </div>
+
+      {/* CENTER CARD — hero of the scene */}
+      <div className="pz-center-card relative z-10">
+        <MockCard type="HOOK" accent="#00C2A8" headline="3 habits that doubled my LinkedIn reach in 30 days" slideNum={1} totalSlides={6} />
+      </div>
+
+      {/* Right card */}
+      <div className="pz-side-right absolute hidden md:block pointer-events-none"
+        style={{ right: "11%", top: "50%", transform: "translateY(-50%) scale(0.76)", opacity: 0.5, zIndex: 2 }}>
+        <MockCard type="CHECKLIST" accent="#10B981" headline={"Daily formula:\n✓ Hook\n✓ Proof\n✓ Value\n✓ CTA"} compact slideNum={4} totalSlides={6} />
+      </div>
+
+      {/* Far-right card */}
+      <div className="pz-far-right absolute hidden md:block pointer-events-none"
+        style={{ right: "2%", top: "50%", transform: "translateY(-54%) scale(0.56)", opacity: 0.2, filter: "blur(2px)", zIndex: 1 }}>
+        <MockCard type="CTA" accent="#F43F5E" headline="Save this. Post it Monday." compact slideNum={6} totalSlides={6} />
+      </div>
+
+      {/* Text reveals on scroll */}
+      <div className="pz-tagline absolute bottom-28 left-0 right-0 text-center pointer-events-none">
+        <h2 className="font-black text-white"
+          style={{ fontFamily: BG, fontSize: "clamp(1.6rem,4vw,2.8rem)", letterSpacing: "-0.03em" }}>
+          Every format. Pixel-perfect.
+        </h2>
+      </div>
+      <div className="pz-sub absolute bottom-20 left-0 right-0 text-center pointer-events-none">
+        <p className="text-sm tracking-wide" style={{ color: "rgba(255,255,255,0.38)", fontFamily: DM }}>
+          Hook · Stat · Checklist · Quote · Before/After · CTA · Tip · Body
+        </p>
+      </div>
+    </section>
+  );
+}
+
+// ─── ShowcaseStrip ────────────────────────────────────────────────────────────
 
 function ShowcaseStrip() {
   return (
-    <div className="py-16 overflow-hidden space-y-4">
-      {/* Row 1: left to right */}
-      <div className="flex gap-4 w-max"
-        style={{ animation: "marquee 40s linear infinite" }}>
-        {[...SHOWCASE_ROW_1, ...SHOWCASE_ROW_1].map((s, i) => (
-          <MockCard key={i} compact {...s} totalSlides={6} />
-        ))}
+    <div className="py-12 overflow-hidden space-y-3">
+      {/* Outer divs get GSAP y-parallax; inner divs get CSS x-marquee */}
+      <div className="showcase-row-1">
+        <div className="flex gap-4 w-max"
+          style={{ animation: "marquee 40s linear infinite" }}>
+          {[...SHOWCASE_ROW_1, ...SHOWCASE_ROW_1].map((s, i) => (
+            <MockCard key={i} compact {...s} totalSlides={6} />
+          ))}
+        </div>
       </div>
-      {/* Row 2: right to left */}
-      <div className="flex gap-4 w-max"
-        style={{ animation: "marquee 36s linear infinite reverse" }}>
-        {[...SHOWCASE_ROW_2, ...SHOWCASE_ROW_2].map((s, i) => (
-          <MockCard key={i} compact {...s} totalSlides={6} />
-        ))}
+      <div className="showcase-row-2" style={{ opacity: 0.85 }}>
+        <div className="flex gap-4 w-max"
+          style={{ animation: "marquee 36s linear infinite reverse" }}>
+          {[...SHOWCASE_ROW_2, ...SHOWCASE_ROW_2].map((s, i) => (
+            <MockCard key={i} compact {...s} totalSlides={6} />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Interactive demo section ─────────────────────────────────────────────────
+// ─── DemoSection ──────────────────────────────────────────────────────────────
 
 function DemoSection() {
   const [input, setInput] = useState("");
@@ -363,7 +531,6 @@ function DemoSection() {
         </FadeUp>
 
         <FadeUp delay={0.1}>
-          {/* Input row */}
           <div className="flex gap-3 mb-4 max-w-2xl mx-auto">
             <input
               value={input}
@@ -391,11 +558,10 @@ function DemoSection() {
             </button>
           </div>
 
-          {/* Suggestion chips */}
           {state === "idle" && (
             <div className="flex flex-wrap gap-2 justify-center mb-4">
               {TOPICS.map(t => (
-                <button key={t} onClick={() => { setInput(t); }}
+                <button key={t} onClick={() => setInput(t)}
                   className="px-3 py-1.5 rounded-full text-xs transition-colors hover:bg-white/[0.06]"
                   style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", fontFamily: DM }}>
                   {t}
@@ -405,7 +571,6 @@ function DemoSection() {
           )}
         </FadeUp>
 
-        {/* Generated slides */}
         <AnimatePresence>
           {state === "done" && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
@@ -422,7 +587,6 @@ function DemoSection() {
                 </div>
               </div>
 
-              {/* CTA row */}
               <div className="text-center mt-8 flex flex-col items-center gap-4">
                 <button
                   onClick={() => setShowPaywall(true)}
@@ -444,7 +608,6 @@ function DemoSection() {
           )}
         </AnimatePresence>
 
-        {/* Paywall modal */}
         <AnimatePresence>
           {showPaywall && (
             <motion.div
@@ -485,7 +648,7 @@ function DemoSection() {
   );
 }
 
-// ─── Pricing section ──────────────────────────────────────────────────────────
+// ─── PricingSection ───────────────────────────────────────────────────────────
 
 function PricingSection() {
   const [billing, setBilling] = useState<BillingPeriod>("monthly");
@@ -503,7 +666,6 @@ function PricingSection() {
       const { url } = await res.json();
       if (url) window.location.href = url;
     } catch {
-      // fallback to signup
       window.location.href = "/signup";
     } finally {
       setCheckingOut(null);
@@ -516,7 +678,7 @@ function PricingSection() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId: pack.stripeId, planName: `${pack.credits} Credits`, billing: "once" }),
+        body: JSON.stringify({ priceId: pack.stripeId, planName: `${pack.credits} Credits`, billing: "once", type: "credits" }),
       });
       const { url } = await res.json();
       if (url) window.location.href = url;
@@ -547,8 +709,6 @@ function PricingSection() {
             <p className="mb-8" style={{ color: "rgba(255,255,255,0.38)", fontFamily: DM }}>
               Start free. 3 carousels on us — no card, no catch.
             </p>
-
-            {/* Billing toggle */}
             <div className="inline-flex items-center gap-1 p-1 rounded-2xl"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
               {(["monthly", "quarterly", "annual"] as BillingPeriod[]).map(b => (
@@ -572,7 +732,6 @@ function PricingSection() {
           </div>
         </FadeUp>
 
-        {/* Free tier callout */}
         <FadeUp delay={0.05}>
           <div className="mb-6 p-5 rounded-2xl flex items-center gap-4"
             style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -594,7 +753,6 @@ function PricingSection() {
           </div>
         </FadeUp>
 
-        {/* Subscription plans */}
         <div className="grid md:grid-cols-3 gap-5 mb-10">
           {PLANS.map((plan, i) => {
             const price = plan.prices[billing];
@@ -632,7 +790,6 @@ function PricingSection() {
                       </p>
                     )}
                   </div>
-
                   <ul className="space-y-3 flex-1 mb-6">
                     {plan.features.map(f => (
                       <li key={f} className="flex items-start gap-2.5 text-[13px]">
@@ -647,7 +804,6 @@ function PricingSection() {
                       </li>
                     )}
                   </ul>
-
                   <button
                     onClick={() => startCheckout(plan)}
                     disabled={isChecking}
@@ -655,9 +811,9 @@ function PricingSection() {
                     style={plan.highlight
                       ? { background: `linear-gradient(135deg,${plan.accent},${plan.accent}CC)`, color: "#fff", fontFamily: DM }
                       : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", fontFamily: DM }}>
-                    {isChecking ? (
-                      <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    ) : plan.cta}
+                    {isChecking
+                      ? <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      : plan.cta}
                   </button>
                 </div>
               </SlideIn>
@@ -665,7 +821,6 @@ function PricingSection() {
           })}
         </div>
 
-        {/* Pay-per-use credit packs */}
         <FadeUp delay={0.2}>
           <div className="rounded-3xl p-8" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <p className="text-[11px] uppercase tracking-[0.22em] font-bold mb-2"
@@ -705,14 +860,318 @@ function PricingSection() {
   );
 }
 
+// ─── Greek art illustration ───────────────────────────────────────────────────
+
+function GreekArt() {
+  const A = "#C8962A";   // amber
+  const D = "#A07018";   // dim amber
+  const C = "#F0DFA0";   // cream
+
+  return (
+    <svg viewBox="0 0 480 270" fill="none" xmlns="http://www.w3.org/2000/svg"
+      style={{ width: "100%", maxWidth: 420, display: "block" }}>
+      <defs>
+        <radialGradient id="ambg" cx="50%" cy="65%" r="55%">
+          <stop offset="0%" stopColor={A} stopOpacity="0.09" />
+          <stop offset="100%" stopColor={A} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Atmospheric warm glow */}
+      <ellipse cx="240" cy="200" rx="220" ry="110" fill="url(#ambg)" />
+
+      {/* Stars */}
+      {([[42,18],[78,8],[120,28],[168,6],[210,20],[270,14],[320,28],[372,8],[418,22],[450,38],[95,38],[345,36]] as [number,number][]).map(([x,y],i) => (
+        <circle key={i} cx={x} cy={y} r={i % 3 === 0 ? 1.8 : 1.1} fill={C} opacity={0.18 + (i % 4) * 0.1} />
+      ))}
+
+      {/* ── Frieze band ── */}
+      <rect x="56" y="44" width="368" height="16" fill={A} opacity="0.1" />
+      {[150, 194, 238, 282, 326].map(cx => (
+        <g key={cx}>
+          <rect x={cx - 8} y="44" width="16" height="16" fill={A} opacity="0.28" />
+          <line x1={cx - 3} y1="44" x2={cx - 3} y2="60" stroke="#060400" strokeWidth="2.5" opacity="0.45" />
+          <line x1={cx + 3} y1="44" x2={cx + 3} y2="60" stroke="#060400" strokeWidth="2.5" opacity="0.45" />
+        </g>
+      ))}
+
+      {/* ── Architrave beam ── */}
+      <rect x="56" y="60" width="368" height="9" fill={A} opacity="0.52" />
+
+      {/* ── LEFT COLUMN ── */}
+      <rect x="56" y="51" width="38" height="9" rx="1" fill={A} opacity="0.78" />
+      <path d="M60,60 L90,60 L87,71 L63,71 Z" fill={A} opacity="0.68" />
+      <rect x="64" y="71" width="22" height="166" fill={A} opacity="0.42" />
+      {[68, 73, 78, 83].map(x => (
+        <line key={x} x1={x} y1="71" x2={x} y2="237" stroke="#060400" strokeWidth="0.9" opacity="0.28" />
+      ))}
+      <rect x="59" y="237" width="32" height="6" rx="1" fill={A} opacity="0.58" />
+      <rect x="55" y="243" width="40" height="7" rx="1" fill={A} opacity="0.48" />
+
+      {/* ── RIGHT COLUMN ── */}
+      <rect x="386" y="51" width="38" height="9" rx="1" fill={A} opacity="0.78" />
+      <path d="M390,60 L420,60 L417,71 L393,71 Z" fill={A} opacity="0.68" />
+      <rect x="394" y="71" width="22" height="166" fill={A} opacity="0.42" />
+      {[398, 403, 408, 413].map(x => (
+        <line key={x} x1={x} y1="71" x2={x} y2="237" stroke="#060400" strokeWidth="0.9" opacity="0.28" />
+      ))}
+      <rect x="389" y="237" width="32" height="6" rx="1" fill={A} opacity="0.58" />
+      <rect x="385" y="243" width="40" height="7" rx="1" fill={A} opacity="0.48" />
+
+      {/* ── Stage floor ── */}
+      <rect x="55" y="250" width="370" height="5" rx="1" fill={A} opacity="0.16" />
+      <line x1="86" y1="250" x2="394" y2="250" stroke={A} strokeWidth="1" opacity="0.22" />
+      {/* Amphitheater hint curves */}
+      <path d="M84,256 Q240,249 396,256" stroke={A} strokeWidth="1" fill="none" opacity="0.1" />
+      <path d="M76,262 Q240,254 404,262" stroke={A} strokeWidth="1" fill="none" opacity="0.07" />
+
+      {/* ── Laurel wreath (upper center) ── */}
+      {([
+        ["M196,38 Q190,29 198,25 Q204,33 196,38 Z", 0.36],
+        ["M204,42 Q196,34 204,29 Q210,37 204,42 Z", 0.32],
+        ["M213,45 Q205,38 212,33 Q219,40 213,45 Z", 0.28],
+        ["M222,47 Q215,41 221,36 Q228,43 222,47 Z", 0.24],
+      ] as [string, number][]).map(([d, op], i) => <path key={i} d={d} fill={A} opacity={op} />)}
+      {([
+        ["M284,38 Q290,29 282,25 Q276,33 284,38 Z", 0.36],
+        ["M276,42 Q284,34 276,29 Q270,37 276,42 Z", 0.32],
+        ["M267,45 Q275,38 268,33 Q261,40 267,45 Z", 0.28],
+        ["M258,47 Q265,41 259,36 Q252,43 258,47 Z", 0.24],
+      ] as [string, number][]).map(([d, op], i) => <path key={i} d={d} fill={A} opacity={op} />)}
+      <path d="M232,50 Q240,56 248,50 L248,54 Q240,60 232,54 Z" fill={A} opacity="0.26" />
+
+      {/* ──────────────────────────────────────── */}
+      {/* FIGURE 1 — ORATOR, arm outstretched     */}
+      {/* ──────────────────────────────────────── */}
+      <circle cx="158" cy="143" r="12" fill={A} />
+      {/* hair/wreath hint */}
+      <path d="M147,138 Q153,130 169,136 L167,141 Q155,133 147,138 Z" fill={D} opacity="0.5" />
+      {/* beard */}
+      <path d="M148,150 L150,161 L166,161 L168,150" fill={D} opacity="0.62" />
+      {/* robe — wider at hem */}
+      <path d="M148,155 L136,250 L180,250 L168,155 Z" fill={A} opacity="0.72" />
+      <line x1="153" y1="158" x2="142" y2="250" stroke={D} strokeWidth="1" opacity="0.28" />
+      <line x1="163" y1="157" x2="171" y2="250" stroke={D} strokeWidth="1" opacity="0.28" />
+      {/* raised arm */}
+      <path d="M168,165 L210,141 L215,150 L173,174 Z" fill={A} opacity="0.8" />
+      <ellipse cx="213" cy="144" rx="6" ry="5" fill={A} opacity="0.68" />
+
+      {/* ──────────────────────────────────────── */}
+      {/* FIGURE 2 — THINKER, seated, hand to chin */}
+      {/* ──────────────────────────────────────── */}
+      {/* seat block */}
+      <rect x="224" y="220" width="32" height="30" rx="2" fill={A} opacity="0.12" />
+      <circle cx="244" cy="162" r="11" fill={A} />
+      <path d="M235,168 L237,179 L251,179 L253,168" fill={D} opacity="0.58" />
+      {/* upper body */}
+      <path d="M236,173 L228,220 L260,220 L252,173 Z" fill={A} opacity="0.68" />
+      {/* legs */}
+      <path d="M228,220 L222,250 L240,250 L240,220 Z" fill={A} opacity="0.6" />
+      <path d="M252,220 L252,250 L270,250 L260,220 Z" fill={A} opacity="0.6" />
+      {/* arm — elbow on knee, hand to chin */}
+      <path d="M236,192 L217,181 L219,189 L238,200 Z" fill={A} opacity="0.68" />
+      <circle cx="215" cy="183" r="5" fill={A} opacity="0.62" />
+
+      {/* ──────────────────────────────────────── */}
+      {/* FIGURE 3 — SCHOLAR, holds scroll        */}
+      {/* ──────────────────────────────────────── */}
+      <circle cx="320" cy="147" r="11" fill={A} />
+      <path d="M312,153 L314,163 L327,163 L329,153" fill={D} opacity="0.58" />
+      {/* robe */}
+      <path d="M313,158 L305,250 L335,250 L327,158 Z" fill={A} opacity="0.7" />
+      <line x1="317" y1="161" x2="311" y2="250" stroke={D} strokeWidth="1" opacity="0.26" />
+      {/* arm holding scroll */}
+      <path d="M313,170 L288,164 L287,174 L313,180 Z" fill={A} opacity="0.68" />
+      {/* scroll */}
+      <rect x="273" y="158" width="17" height="24" rx="4" fill={C} opacity="0.38" />
+      <ellipse cx="273" cy="170" rx="3" ry="5" fill={C} opacity="0.28" />
+      <ellipse cx="290" cy="170" rx="3" ry="5" fill={C} opacity="0.28" />
+      {[163, 168, 172, 177].map(y => (
+        <line key={y} x1="276" y1={y} x2="288" y2={y} stroke={A} strokeWidth="0.7" opacity="0.32" />
+      ))}
+    </svg>
+  );
+}
+
+// ─── Affiliate waitlist section ───────────────────────────────────────────────
+
+function AffiliateWaitlist() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || status === "loading") return;
+    setStatus("loading");
+    try {
+      await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+    } catch { /* graceful — UX always succeeds */ }
+    setStatus("done");
+  };
+
+  return (
+    <section className="relative py-20 px-4 overflow-hidden"
+      style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+
+      {/* Warm amber glow — distinct from the teal glow elsewhere */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse 65% 55% at 50% 35%, rgba(60,35,0,0.32) 0%, transparent 68%)",
+      }} />
+
+      <div className="max-w-3xl mx-auto relative">
+        <FadeUp>
+          <div className="text-center">
+
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.18em] mb-6"
+              style={{ background: "rgba(200,150,42,0.1)", border: "1px solid rgba(200,150,42,0.28)", color: "#C8962A", fontFamily: DM }}>
+              <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: "#C8962A", opacity: 0.7 }} />
+              Affiliate Program — Waitlist
+            </div>
+
+            {/* Title */}
+            <h2 className="font-black mb-3 leading-tight"
+              style={{ fontFamily: BG, fontSize: "clamp(2rem,5vw,3.5rem)", letterSpacing: "-0.03em" }}>
+              The Inner Circle
+            </h2>
+            <p className="mb-10 text-[15px]" style={{ color: "rgba(255,255,255,0.38)", fontFamily: DM }}>
+              25% lifetime commission. No cap. Launching at $25K MRR.
+            </p>
+
+            {/* Greek illustration */}
+            <div className="flex justify-center mb-10">
+              <GreekArt />
+            </div>
+
+            {/* Commission stats */}
+            <div className="flex flex-wrap justify-center gap-8 mb-10">
+              {([
+                ["25%", "lifetime commission"],
+                ["$10", "min payout"],
+                ["∞", "no cap, ever"],
+                ["Monthly", "automatic payouts"],
+              ] as [string, string][]).map(([val, label]) => (
+                <div key={label} className="text-center">
+                  <div className="font-black text-xl mb-0.5" style={{ fontFamily: BG, color: "#C8962A" }}>{val}</div>
+                  <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)", fontFamily: DM }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Waitlist form */}
+            {status === "done" ? (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center gap-2">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center mb-1"
+                  style={{ background: "rgba(200,150,42,0.14)", border: "1px solid rgba(200,150,42,0.32)" }}>
+                  <Check className="w-5 h-5" style={{ color: "#C8962A" }} />
+                </div>
+                <p className="font-bold" style={{ color: "#C8962A", fontFamily: BG }}>You're on the list.</p>
+                <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.35)", fontFamily: DM }}>
+                  We'll reach out when we launch.
+                </p>
+              </motion.div>
+            ) : (
+              <form onSubmit={handleSubmit} className="flex gap-2 max-w-sm mx-auto">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  required
+                  className="flex-1 h-11 px-4 rounded-xl outline-none text-white text-[14px]"
+                  style={{
+                    background: "rgba(200,150,42,0.06)",
+                    border: "1px solid rgba(200,150,42,0.22)",
+                    fontFamily: DM,
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={status === "loading"}
+                  className="h-11 px-5 rounded-xl font-bold text-[13px] flex items-center gap-2 flex-shrink-0 transition-all hover:brightness-110 disabled:opacity-60"
+                  style={{ background: "linear-gradient(135deg,#C8962A,#E0B040)", color: "#0A0600", fontFamily: DM }}>
+                  {status === "loading"
+                    ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    : "Join waitlist"}
+                </button>
+              </form>
+            )}
+
+          </div>
+        </FadeUp>
+      </div>
+    </section>
+  );
+}
+
 // ─── Main landing page ────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  const pageRef = useRef<HTMLDivElement>(null);
   const SLIDE_TYPES = ["Hook", "Checklist", "Quote", "Stat", "Before / After", "Tip", "CTA", "Body"];
 
+  // ── Page-level GSAP: hero parallax + bento 3D + how-step + showcase ──────
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+
+      // Hero multi-depth parallax — copy and cards move at different rates
+      const heroTrigger = { trigger: ".hero-section", start: "top top", end: "bottom top", scrub: 1.4 };
+      gsap.to(".hero-copy",  { y: "-14%", ease: "none", scrollTrigger: heroTrigger });
+      gsap.to(".hero-cards", { y: "-24%", ease: "none", scrollTrigger: { ...heroTrigger, scrub: 1 } });
+
+      // Bento feature cards — 3D lift from below (rotateX, not rotateY, for a floor-rise feel)
+      gsap.utils.toArray<Element>(".bento-card").forEach((card, i) => {
+        gsap.from(card, {
+          opacity: 0,
+          y: 56,
+          scale: 0.88,
+          rotateX: 10,
+          transformPerspective: 900,
+          duration: 0.85,
+          ease: "power3.out",
+          delay: (i % 3) * 0.09,
+          clearProps: "all",
+          scrollTrigger: { trigger: card, start: "top 88%", once: true },
+        });
+      });
+
+      // How-it-works steps — alternating 3D side entries
+      gsap.utils.toArray<Element>(".how-step").forEach((step, i) => {
+        gsap.from(step, {
+          opacity: 0,
+          x: i % 2 === 0 ? -58 : 58,
+          rotateY: i % 2 === 0 ? -11 : 11,
+          transformPerspective: 900,
+          duration: 0.8,
+          ease: "power3.out",
+          clearProps: "all",
+          scrollTrigger: { trigger: step, start: "top 86%", once: true },
+        });
+      });
+
+      // Showcase strip — rows drift in opposite y directions on scroll (depth illusion)
+      gsap.to(".showcase-row-1", {
+        y: -28, ease: "none",
+        scrollTrigger: { trigger: ".showcase-section", start: "top bottom", end: "bottom top", scrub: 1.1 },
+      });
+      gsap.to(".showcase-row-2", {
+        y: 28, ease: "none",
+        scrollTrigger: { trigger: ".showcase-section", start: "top bottom", end: "bottom top", scrub: 1.1 },
+      });
+
+    }, pageRef);
+
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <div className="min-h-screen text-white overflow-x-hidden" style={{ background: "#070707" }}>
-      {/* Ambient mesh */}
+    <div ref={pageRef} className="min-h-screen text-white overflow-x-hidden" style={{ background: "#070707" }}>
+      {/* Ambient mesh — fixed, always visible */}
       <div className="fixed inset-0 pointer-events-none" style={{
         background: [
           "radial-gradient(ellipse 90% 55% at 50% -5%,rgba(0,194,168,0.11) 0%,transparent 60%)",
@@ -751,11 +1210,12 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ─────────────────────────────────────── */}
-      <section className="relative pt-32 pb-12 px-4">
+      <section className="hero-section relative pt-32 pb-12 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-[1fr_460px] gap-14 items-center min-h-[calc(100vh-10rem)]">
-            {/* Left */}
-            <div className="lg:py-16">
+
+            {/* Left copy — moves up slower on scroll (hero parallax layer 1) */}
+            <div className="hero-copy lg:py-16">
               <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-8"
                 style={{ background: "rgba(0,194,168,0.08)", border: "1px solid rgba(0,194,168,0.22)", color: "#00C2A8", fontFamily: DM }}>
@@ -810,42 +1270,18 @@ export default function LandingPage() {
               </motion.p>
             </div>
 
-            {/* Right: 3D card deck */}
-            <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
+            {/* Right — 3D card deck, moves up faster on scroll (hero parallax layer 2) */}
+            <motion.div
+              initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.9, delay: 0.25, ease: [0.21, 0.47, 0.32, 0.98] }}
-              className="hidden lg:flex items-center justify-center">
-              <Tilt3D>
-                <div className="relative w-72 h-[420px]">
-                  <div className="absolute inset-0 rounded-full" style={{
-                    background: "radial-gradient(ellipse 65% 55% at 50% 50%,rgba(0,194,168,0.18) 0%,transparent 70%)",
-                    animation: "glow-pulse 4s ease-in-out infinite",
-                  }} />
-                  {/* Back */}
-                  <div className="absolute" style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%) rotate(-10deg) translate(-32px,28px)", zIndex: 1 }}>
-                    <motion.div animate={{ y: [0, -7, 0] }} transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}>
-                      <MockCard type="CTA" accent="#7C3AED" headline="Follow for weekly growth frameworks that actually work" slideNum={6} totalSlides={6} />
-                    </motion.div>
-                  </div>
-                  {/* Mid */}
-                  <div className="absolute" style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%) rotate(-3deg) translate(-12px,10px)", zIndex: 2 }}>
-                    <motion.div animate={{ y: [0, -9, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}>
-                      <MockCard type="STAT" accent="#F59E0B" headline="87%" sub="of top posts use a strong hook slide" slideNum={3} totalSlides={6} />
-                    </motion.div>
-                  </div>
-                  {/* Front */}
-                  <div className="absolute" style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%) rotate(4deg) translate(8px,-8px)", zIndex: 3 }}>
-                    <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
-                      <MockCard type="HOOK" accent="#00C2A8" headline="3 habits that doubled my LinkedIn reach in 30 days" slideNum={1} totalSlides={6} />
-                    </motion.div>
-                  </div>
-                </div>
-              </Tilt3D>
+              className="hero-cards hidden lg:flex items-center justify-center">
+              <DeepCardDeck />
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* ── Type marquee ─────────────────────────────── */}
+      {/* ── Slide type marquee ─────────────────────────── */}
       <div className="overflow-hidden" style={{ borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <div className="py-7 flex whitespace-nowrap w-max" style={{ animation: "marquee 22s linear infinite" }}>
           {[...SLIDE_TYPES, ...SLIDE_TYPES].map((t, i) => (
@@ -858,8 +1294,11 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ── Example carousel showcase ─────────────────── */}
-      <section className="py-12 px-4">
+      {/* ── PinnedZoom — cinematic scroll scene ──────── */}
+      <PinnedZoom />
+
+      {/* ── Carousel showcase strip ───────────────────── */}
+      <section className="showcase-section py-12 px-4">
         <div className="max-w-5xl mx-auto text-center mb-4">
           <FadeUp>
             <p className="text-sm" style={{ color: "rgba(255,255,255,0.3)", fontFamily: DM }}>
@@ -888,21 +1327,20 @@ export default function LandingPage() {
           </FadeUp>
           <div>
             {[
-              { step: "01", title: "Give it your input", desc: "Type a topic, paste an article URL, or drop in a YouTube transcript. Scrollr handles the extraction automatically.", accent: "#00C2A8", dir: "left" as const },
-              { step: "02", title: "Claude writes every slide", desc: "Generates a hook, 5–8 body slides from 8 viral formats, and a CTA — all optimized for your platform and copy science.", accent: "#7C3AED", dir: "right" as const },
-              { step: "03", title: "Review, edit, export", desc: "Preview all slides, make quick inline edits, then download a ZIP of high-res PNGs ready to schedule.", accent: "#F59E0B", dir: "left" as const },
-            ].map(({ step, title, desc, accent, dir }, i) => (
-              <SlideIn key={step} from={dir} delay={i * 0.08}>
-                <div className="flex gap-8 py-10 group cursor-default" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div className="font-black text-[3.5rem] w-16 leading-none shrink-0 select-none"
-                    style={{ color: accent, opacity: 0.25, fontFamily: BG }}>{step}</div>
-                  <div className="pt-1 flex-1">
-                    <h3 className="text-xl font-black mb-2 group-hover:text-white/90 transition-colors" style={{ fontFamily: BG }}>{title}</h3>
-                    <p className="text-[15px] leading-relaxed max-w-lg" style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>{desc}</p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 mt-2 shrink-0 hidden md:block transition-all group-hover:translate-x-1" style={{ color: "rgba(255,255,255,0.15)" }} />
+              { step: "01", title: "Give it your input", desc: "Type a topic, paste an article URL, or drop in a YouTube transcript. Scrollr handles the extraction automatically.", accent: "#00C2A8" },
+              { step: "02", title: "Claude writes every slide", desc: "Generates a hook, 5–8 body slides from 8 viral formats, and a CTA — all optimized for your platform and copy science.", accent: "#7C3AED" },
+              { step: "03", title: "Review, edit, export", desc: "Preview all slides, make quick inline edits, then download a ZIP of high-res PNGs ready to schedule.", accent: "#F59E0B" },
+            ].map(({ step, title, desc, accent }) => (
+              <div key={step} className="how-step flex gap-8 py-10 group cursor-default"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="font-black text-[3.5rem] w-16 leading-none shrink-0 select-none"
+                  style={{ color: accent, opacity: 0.25, fontFamily: BG }}>{step}</div>
+                <div className="pt-1 flex-1">
+                  <h3 className="text-xl font-black mb-2 group-hover:text-white/90 transition-colors" style={{ fontFamily: BG }}>{title}</h3>
+                  <p className="text-[15px] leading-relaxed max-w-lg" style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>{desc}</p>
                 </div>
-              </SlideIn>
+                <ArrowRight className="w-4 h-4 mt-2 shrink-0 hidden md:block transition-all group-hover:translate-x-1" style={{ color: "rgba(255,255,255,0.15)" }} />
+              </div>
             ))}
           </div>
         </div>
@@ -919,7 +1357,9 @@ export default function LandingPage() {
             </h2>
           </FadeUp>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <SlideIn from="left" delay={0.05} className="md:col-span-2">
+
+            {/* Large card — md:col-span-2 */}
+            <div className="bento-card md:col-span-2">
               <div className="h-full p-8 rounded-3xl flex flex-col transition-all duration-300 hover:brightness-110"
                 style={{ background: "linear-gradient(135deg,rgba(0,194,168,0.09) 0%,rgba(0,0,0,0) 65%)", border: "1px solid rgba(0,194,168,0.18)" }}>
                 <BookImage className="w-6 h-6 mb-6" style={{ color: "#00C2A8" }} />
@@ -934,45 +1374,46 @@ export default function LandingPage() {
                   <div className="h-[1px] flex-1" style={{ background: "rgba(0,194,168,0.2)" }} />
                 </div>
               </div>
-            </SlideIn>
+            </div>
 
-            <SlideIn from="right" delay={0.1}>
+            <div className="bento-card">
               <div className="p-6 rounded-3xl h-full transition-all duration-300 hover:bg-white/[0.03]"
                 style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <Download className="w-5 h-5 mb-5" style={{ color: "#3B82F6" }} />
                 <h3 className="font-black mb-2" style={{ fontFamily: BG }}>Export-ready PNGs</h3>
                 <p className="text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}>High-res PNG ZIP download. Straight to your scheduler.</p>
               </div>
-            </SlideIn>
+            </div>
 
-            <SlideIn from="left" delay={0.15}>
+            <div className="bento-card">
               <div className="p-6 rounded-3xl transition-all duration-300 hover:bg-white/[0.03]"
                 style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <Zap className="w-5 h-5 mb-5" style={{ color: "#F59E0B" }} />
                 <h3 className="font-black mb-2" style={{ fontFamily: BG }}>Multi-platform</h3>
                 <p className="text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}>Instagram 4:5, LinkedIn 1:1, X 16:9. One input, three formats.</p>
               </div>
-            </SlideIn>
+            </div>
 
-            <SlideIn from="right" delay={0.2}>
+            <div className="bento-card">
               <div className="p-6 rounded-3xl transition-all duration-300 hover:bg-white/[0.03]"
                 style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <BarChart3 className="w-5 h-5 mb-5" style={{ color: "#F43F5E" }} />
                 <h3 className="font-black mb-2" style={{ fontFamily: BG }}>Viral copy science</h3>
                 <p className="text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}>Hooks under 12 words. Slides under 22. Written for saves.</p>
               </div>
-            </SlideIn>
+            </div>
 
-            <SlideIn from="left" delay={0.25}>
+            <div className="bento-card">
               <div className="p-6 rounded-3xl transition-all duration-300 hover:bg-white/[0.03]"
                 style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <ListChecks className="w-5 h-5 mb-5" style={{ color: "#7C3AED" }} />
                 <h3 className="font-black mb-2" style={{ fontFamily: BG }}>8 slide formats</h3>
                 <p className="text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}>Hook, body, quote, stat, checklist, before/after, tip, CTA.</p>
               </div>
-            </SlideIn>
+            </div>
 
-            <FadeUp delay={0.3} className="md:col-span-3">
+            {/* Wide bottom card */}
+            <div className="bento-card md:col-span-3">
               <div className="p-8 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all duration-300 hover:brightness-105"
                 style={{ background: "linear-gradient(135deg,rgba(124,58,237,0.09) 0%,rgba(0,0,0,0) 55%)", border: "1px solid rgba(124,58,237,0.16)" }}>
                 <div>
@@ -988,7 +1429,7 @@ export default function LandingPage() {
                   Try it free <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
-            </FadeUp>
+            </div>
           </div>
         </div>
       </section>
@@ -996,46 +1437,8 @@ export default function LandingPage() {
       {/* ── Pricing ──────────────────────────────────── */}
       <PricingSection />
 
-      {/* ── Referral callout ─────────────────────────── */}
-      <section className="py-20 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-        <div className="max-w-4xl mx-auto">
-          <SlideIn from="left">
-            <div className="rounded-3xl p-10 md:p-14 flex flex-col md:flex-row items-start md:items-center gap-8"
-              style={{ background: "linear-gradient(135deg,rgba(0,194,168,0.07) 0%,rgba(124,58,237,0.07) 100%)", border: "1px solid rgba(0,194,168,0.15)" }}>
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(0,194,168,0.12)", border: "1px solid rgba(0,194,168,0.2)" }}>
-                <Gift className="w-7 h-7" style={{ color: "#00C2A8" }} />
-              </div>
-              <div className="flex-1">
-                <h2 className="font-black text-2xl md:text-3xl mb-2" style={{ fontFamily: BG, letterSpacing: "-0.02em" }}>
-                  Earn 10% forever with referrals
-                </h2>
-                <p className="text-[15px] leading-relaxed mb-4" style={{ color: "rgba(255,255,255,0.5)", fontFamily: DM }}>
-                  Refer a friend. Every time they pay — this month, next year, forever — you get 10% in your pocket.
-                  No cap, no expiry, no games. Just passive income from people you've already convinced.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  {[
-                    { label: "10% commission", note: "on every payment" },
-                    { label: "Lifetime", note: "not just first month" },
-                    { label: "Instant payout", note: "when you hit $25" },
-                  ].map(({ label, note }) => (
-                    <div key={label} className="text-sm">
-                      <span className="font-bold" style={{ color: "#00C2A8", fontFamily: BG }}>{label}</span>
-                      <span className="ml-1.5" style={{ color: "rgba(255,255,255,0.4)", fontFamily: DM }}>{note}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <Link href="/signup"
-                className="px-6 py-3 rounded-xl font-bold text-sm text-black flex-shrink-0 transition-all hover:brightness-110 whitespace-nowrap"
-                style={{ background: "linear-gradient(135deg,#00C2A8,#00DFC8)", fontFamily: DM }}>
-                Join & get link →
-              </Link>
-            </div>
-          </SlideIn>
-        </div>
-      </section>
+      {/* ── Affiliate waitlist ───────────────────────── */}
+      <AffiliateWaitlist />
 
       {/* ── Final CTA ────────────────────────────────── */}
       <section className="py-28 px-4">

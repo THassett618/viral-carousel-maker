@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Sparkles, Check, ArrowRight } from "lucide-react";
 
 const PERKS = [
-  "5 carousels free every month",
+  "3 carousels free to start",
   "All 8 slide templates included",
   "Instagram, LinkedIn, X support",
   "No credit card required",

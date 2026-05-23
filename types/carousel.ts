@@ -114,6 +114,44 @@ export interface GenerateInput {
   brandName?: string;
   referenceImageIds?: string[];
   useLibrary?: boolean;
+  // ICP context
+  targetAudience?: string;
+  offering?: string;
+  goal?: string;
+  // Pre-selected hook from hook engine
+  chosenHook?: string;
+}
+
+export interface GenerateHooksInput {
+  topic?: string;
+  url?: string;
+  rawText?: string;
+  platform: Platform;
+  targetAudience?: string;
+  offering?: string;
+  goal?: string;
+}
+
+export interface HookOption {
+  id: string;
+  angle: string;
+  hook: string;
+  why: string;
+}
+
+export type RepurposeFormat = "thread" | "email" | "linkedin_post";
+
+export interface RepurposeInput {
+  format: RepurposeFormat;
+  slides: Slide[];
+  topic?: string;
+  platform: Platform;
+  brandName?: string;
+}
+
+export interface RepurposeOutput {
+  format: RepurposeFormat;
+  content: string;
 }
 
 export interface GenerateResponse {

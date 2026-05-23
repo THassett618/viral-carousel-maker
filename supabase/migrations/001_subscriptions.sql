@@ -155,7 +155,7 @@ create table if not exists referral_commissions (
   referred_id       uuid references auth.users(id) on delete cascade not null,
   stripe_session_id text,
   gross_amount      numeric(10,2) not null,
-  commission_rate   numeric(5,4) not null default 0.10,
+  commission_rate   numeric(5,4) not null default 0.25,
   commission_amount numeric(10,2) not null,
   status            text not null default 'pending' check (status in ('pending', 'paid_out')),
   created_at        timestamptz default now()

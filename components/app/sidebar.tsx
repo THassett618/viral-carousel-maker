@@ -6,13 +6,15 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { Sparkles, LayoutGrid, BookImage, LogOut } from "lucide-react";
+import { Sparkles, LayoutGrid, BookImage, LogOut, Gift } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UsageWidget } from "@/components/app/usage-widget";
 
 const NAV = [
   { href: "/generate", label: "Generate", icon: Sparkles },
   { href: "/carousels", label: "My Carousels", icon: LayoutGrid },
-  { href: "/library", label: "Style Library", icon: BookImage },
+  { href: "/library",   label: "Style Library", icon: BookImage  },
+  { href: "/referrals", label: "Earn & Refer",  icon: Gift       },
 ];
 
 interface Props {
@@ -110,6 +112,9 @@ export function AppSidebar({ user }: Props) {
           );
         })}
       </nav>
+
+      {/* Usage widget */}
+      <UsageWidget />
 
       {/* User row */}
       <div

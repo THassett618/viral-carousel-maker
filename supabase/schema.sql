@@ -8,7 +8,7 @@ create table if not exists profiles (
   email text,
   name text,
   avatar_url text,
-  plan text default 'free' check (plan in ('free', 'pro', 'team')),
+  plan text default 'free' check (plan in ('free', 'starter', 'pro', 'agency')),
   carousels_this_month int default 0,
   created_at timestamptz default now()
 );

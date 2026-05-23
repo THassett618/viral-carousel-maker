@@ -13,12 +13,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { priceId, planName, billing, type } = await req.json() as {
-      priceId: string;
-      planName: string;
+    const body = await req.json() as {
+      priceId?: string;
+      planName?: string;
       billing?: string;
       type?: "subscription" | "credits";
+      credits?: 5 | 20 | 60;
     };
+
+    let { priceId, planName, billing } = body;
+    const { type, credits } = body;
+
+    // Resolve credit pack price IDs server-side so they're never exposed to the client
+    if (type === "credits" && credits) {
+      const CREDIT_PRICE_IDS: Record<number, string | undefined> = {
+        5:  process.env.STRIPE_PRICE_CREDITS_5,
+        20: process.env.STRIPE_PRICE_CREDITS_20,
+        60: process.env.STRIPE_PRICE_CREDITS_60,
+      };
+      priceId = CREDIT_PRICE_IDS[credits];
+      planName = planName ?? `${credits} Credits`;
+      if (!priceId) {
+        return NextResponse.json({ error: `STRIPE_PRICE_CREDITS_${credits} is not configured` }, { status: 500 });
+      }
+    }
 
     if (!priceId) {
       return NextResponse.json({ error: "priceId is required" }, { status: 400 });
