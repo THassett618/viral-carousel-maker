@@ -754,7 +754,17 @@ function SlideIn({ children, from = "left", delay = 0, className }: {
   return <div ref={ref} className={className}>{children}</div>;
 }
 
-// ─── PinnedScene — scroll-pinned camera-zoom scene ───────────────────────────
+// ─── PinnedScene — scroll-pinned card fan that collapses to a hero ────────────
+//
+// Fix from v1: the old `.from(".pz-center-card", { scale: 0.2 })` caused the
+// INITIAL pinned state (scroll=0) to show an empty scene — center card was
+// invisible, side cards were at the far screen edges with no gap to center.
+//
+// This version:
+// 1. GSAP owns ALL transforms via gsap.set() — no CSS transform conflicts
+// 2. Cards start visible in a fan arc (centered around the section center)
+// 3. All .to() animations — scrub plays forward: fan collapses into hero card
+// 4. Side card x-offsets are symmetric around section center, not left/right %
 
 function PinnedScene() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -764,8 +774,29 @@ function PinnedScene() {
     if (!el) return;
 
     const mm = gsap.matchMedia();
+
     mm.add("(min-width: 768px)", () => {
-      gsap.set(".pz-tagline, .pz-sub", { opacity: 0, y: 36, filter: "blur(4px)" });
+      // ── Initial fan arc — GSAP owns transforms, CSS has no transform on these ──
+      // All cards are absolutely positioned at left:50%, top:50%.
+      // xPercent:-50, yPercent:-50 centers them. x offsets them from center.
+      gsap.set(".pz-far-left", {
+        xPercent: -50, yPercent: -50,
+        x: -390, rotate: -22, scale: 0.46, opacity: 0.22, filter: "blur(3px)",
+      });
+      gsap.set(".pz-side-left", {
+        xPercent: -50, yPercent: -50,
+        x: -222, rotate: -10, scale: 0.76, opacity: 0.65,
+      });
+      gsap.set(".pz-side-right", {
+        xPercent: -50, yPercent: -50,
+        x:  222, rotate:  10, scale: 0.76, opacity: 0.65,
+      });
+      gsap.set(".pz-far-right", {
+        xPercent: -50, yPercent: -50,
+        x:  390, rotate:  22, scale: 0.46, opacity: 0.22, filter: "blur(3px)",
+      });
+      // Text elements hidden initially
+      gsap.set(".pz-tagline, .pz-sub", { opacity: 0, y: 40, filter: "blur(6px)" });
       gsap.set(".pz-line", { scaleX: 0, transformOrigin: "left center" });
 
       const tl = gsap.timeline({
@@ -776,16 +807,41 @@ function PinnedScene() {
       });
 
       tl
-        .from(".pz-center-card", { scale: 0.2, opacity: 0, duration: 1, ease: "expo.out" })
-        .to(".pz-side-left",  { x: -200, opacity: 0, scale: 0.72, filter: "blur(8px)",  duration: 0.7 }, 0)
-        .to(".pz-side-right", { x:  200, opacity: 0, scale: 0.72, filter: "blur(8px)",  duration: 0.7 }, 0)
-        .to(".pz-far-left",   { x: -340, opacity: 0, filter: "blur(14px)", duration: 0.8 }, 0)
-        .to(".pz-far-right",  { x:  340, opacity: 0, filter: "blur(14px)", duration: 0.8 }, 0)
-        .to(".pz-tagline",   { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5 }, 0.68)
-        .to(".pz-line",      { scaleX: 1, duration: 0.4 }, 0.72)
-        .to(".pz-sub",       { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.4 }, 0.84);
+        // Center card zooms forward — already at scale 1, grows to 1.4
+        .to(".pz-center-card", { scale: 1.42, duration: 1, ease: "power2.inOut" })
+        // Side cards fly outward with rotation and blur — cinematic depth
+        .to(".pz-side-left",  {
+          x: -560, rotate: -36, scale: 0.32, opacity: 0, filter: "blur(16px)", duration: 0.9, ease: "power2.in",
+        }, 0)
+        .to(".pz-side-right", {
+          x:  560, rotate:  36, scale: 0.32, opacity: 0, filter: "blur(16px)", duration: 0.9, ease: "power2.in",
+        }, 0)
+        .to(".pz-far-left",   {
+          x: -700, rotate: -50, scale: 0.18, opacity: 0, filter: "blur(28px)", duration: 1, ease: "power2.in",
+        }, 0)
+        .to(".pz-far-right",  {
+          x:  700, rotate:  50, scale: 0.18, opacity: 0, filter: "blur(28px)", duration: 1, ease: "power2.in",
+        }, 0)
+        // Text reveals in the second half
+        .to(".pz-tagline",    { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5 }, 0.58)
+        .to(".pz-line",       { scaleX: 1, duration: 0.4 }, 0.65)
+        .to(".pz-sub",        { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.4 }, 0.74);
 
       return () => { tl.scrollTrigger?.kill(); tl.kill(); };
+    });
+
+    mm.add("(max-width: 767px)", () => {
+      // Mobile: no pin, just fade the center card in
+      gsap.set(".pz-tagline, .pz-sub", { opacity: 0, y: 30, filter: "blur(4px)" });
+      gsap.from(".pz-center-card", {
+        opacity: 0, scale: 0.88, y: 24,
+        duration: 0.75, ease: "expo.out",
+        scrollTrigger: { trigger: el, start: "top 80%", once: true },
+      });
+      gsap.to(".pz-tagline, .pz-sub", {
+        opacity: 1, y: 0, filter: "blur(0px)", duration: 0.6, stagger: 0.12,
+        scrollTrigger: { trigger: el, start: "top 65%", once: true },
+      });
     });
 
     return () => mm.revert();
@@ -794,57 +850,76 @@ function PinnedScene() {
   return (
     <section
       ref={sectionRef}
-      className="relative h-screen flex flex-col items-center justify-center overflow-hidden"
+      className="relative h-screen overflow-hidden"
       style={{ background: "#060606" }}
     >
-      {/* Ambient radial light */}
+      {/* Ambient radial glow — teal center, fades to black */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse 55% 48% at 50% 55%, rgba(0,194,168,0.07) 0%, rgba(124,58,237,0.04) 50%, transparent 70%)",
+        background: "radial-gradient(ellipse 70% 65% at 50% 50%, rgba(0,194,168,0.10) 0%, rgba(124,58,237,0.06) 40%, transparent 70%)",
+      }} />
+      {/* Secondary violet accent — upper corner */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse 45% 35% at 70% 20%, rgba(124,58,237,0.07) 0%, transparent 60%)",
       }} />
 
-      {/* Far-left card */}
-      <div className="pz-far-left absolute hidden md:block pointer-events-none"
-        style={{ left: "1%", top: "50%", transform: "translateY(-54%) scale(0.52)", opacity: 0.18, filter: "blur(3px)", zIndex: 1 }}>
+      {/* Scroll cue label */}
+      <div className="absolute top-20 left-0 right-0 flex justify-center pointer-events-none">
+        <p className="text-[10px] tracking-[0.42em] font-medium uppercase"
+          style={{ color: "rgba(255,255,255,0.26)", fontFamily: DM }}>
+          scroll to explore
+        </p>
+      </div>
+
+      {/* ── Card stage ────────────────────────────────────────────────────────
+          All side cards are absolute at left:50%, top:50%.
+          GSAP's gsap.set() positions them via xPercent, yPercent, x, rotate, scale.
+          This keeps GSAP the single transform authority — no CSS conflict.
+      ──────────────────────────────────────────────────────────────────────── */}
+
+      {/* Far-left */}
+      <div className="pz-far-left absolute hidden lg:block pointer-events-none"
+        style={{ left: "50%", top: "50%", zIndex: 1 }}>
         <MockCard type="QUOTE" accent="#3B82F6" headline={`"Consistency\nbeats perfection."`} compact slideNum={4} totalSlides={6} />
       </div>
 
-      {/* Left card */}
+      {/* Side-left */}
       <div className="pz-side-left absolute hidden md:block pointer-events-none"
-        style={{ left: "9%", top: "50%", transform: "translateY(-50%) scale(0.74)", opacity: 0.45, zIndex: 2 }}>
+        style={{ left: "50%", top: "50%", zIndex: 2 }}>
         <MockCard type="STAT" accent="#F59E0B" headline="87%" sub="of viral posts lead with a curiosity-gap hook" compact slideNum={2} totalSlides={6} />
       </div>
 
-      {/* CENTER — camera target */}
-      <div className="pz-center-card relative z-10">
-        <MockCard type="HOOK" accent="#00C2A8" headline="3 habits that doubled my LinkedIn reach in 30 days" slideNum={1} totalSlides={6} />
+      {/* CENTER — in flex flow, naturally centered */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="pz-center-card pointer-events-none" style={{ zIndex: 10 }}>
+          <MockCard type="HOOK" accent="#00C2A8" headline="3 habits that doubled my LinkedIn reach in 30 days" slideNum={1} totalSlides={6} />
+        </div>
       </div>
 
-      {/* Right card */}
+      {/* Side-right */}
       <div className="pz-side-right absolute hidden md:block pointer-events-none"
-        style={{ right: "9%", top: "50%", transform: "translateY(-50%) scale(0.74)", opacity: 0.45, zIndex: 2 }}>
+        style={{ left: "50%", top: "50%", zIndex: 2 }}>
         <MockCard type="CHECKLIST" accent="#10B981" headline={"Daily formula:\n✓ Hook\n✓ Proof\n✓ Value\n✓ CTA"} compact slideNum={4} totalSlides={6} />
       </div>
 
-      {/* Far-right card */}
-      <div className="pz-far-right absolute hidden md:block pointer-events-none"
-        style={{ right: "1%", top: "50%", transform: "translateY(-54%) scale(0.52)", opacity: 0.18, filter: "blur(3px)", zIndex: 1 }}>
+      {/* Far-right */}
+      <div className="pz-far-right absolute hidden lg:block pointer-events-none"
+        style={{ left: "50%", top: "50%", zIndex: 1 }}>
         <MockCard type="CTA" accent="#F43F5E" headline="Save this. Post it Monday." compact slideNum={6} totalSlides={6} />
       </div>
 
-      {/* Text — revealed on scroll */}
-      <div className="pz-tagline absolute bottom-32 left-0 right-0 text-center pointer-events-none"
-        style={{ filter: "blur(4px)" }}>
+      {/* Text — revealed during second half of scroll */}
+      <div className="pz-tagline absolute bottom-32 left-0 right-0 text-center pointer-events-none">
         <h2 className="font-black text-white"
-          style={{ fontFamily: BG, fontSize: "clamp(1.7rem,4.2vw,3rem)", letterSpacing: "-0.03em" }}>
+          style={{ fontFamily: BG, fontSize: "clamp(1.8rem,4.5vw,3.2rem)", letterSpacing: "-0.035em" }}>
           Every format. Pixel-perfect.
         </h2>
       </div>
-      <div className="pz-line absolute bottom-[120px] left-1/2 -translate-x-1/2 pointer-events-none"
-        style={{ width: "min(480px,80vw)", height: "1px", background: "rgba(255,255,255,0.12)" }} />
-      <div className="pz-sub absolute bottom-20 left-0 right-0 text-center pointer-events-none"
-        style={{ filter: "blur(4px)" }}>
-        <p className="text-sm tracking-widest font-medium" style={{ color: "rgba(255,255,255,0.34)", fontFamily: DM }}>
-          Hook · Stat · Checklist · Quote · Before/After · CTA · Tip · Body
+      <div className="pz-line absolute left-1/2 -translate-x-1/2 pointer-events-none"
+        style={{ bottom: "118px", width: "min(500px,80vw)", height: "1px", background: "rgba(255,255,255,0.10)" }} />
+      <div className="pz-sub absolute bottom-20 left-0 right-0 text-center pointer-events-none">
+        <p className="text-[13px] tracking-widest font-medium"
+          style={{ color: "rgba(255,255,255,0.5)", fontFamily: DM }}>
+          Hook · Stat · Checklist · Quote · Before/After · CTA
         </p>
       </div>
     </section>
@@ -905,7 +980,7 @@ function DemoSection() {
               style={{ fontFamily: BG, fontSize: "clamp(2rem,4.5vw,3.2rem)", letterSpacing: "-0.035em" }}>
               Try it right now
             </h2>
-            <p className="text-[15px]" style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}>
+            <p className="text-[15px]" style={{ color: "rgba(255,255,255,0.66)", fontFamily: DM }}>
               Type any topic. Watch Claude write every slide in under 2 seconds.
             </p>
           </div>
@@ -938,7 +1013,7 @@ function DemoSection() {
               {TOPICS.map(t => (
                 <button key={t} onClick={() => setInput(t)}
                   className="px-3 py-1.5 rounded-full text-xs transition-all hover:bg-white/[0.07] hover:border-white/25"
-                  style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.38)", fontFamily: DM }}>
+                  style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.58)", fontFamily: DM }}>
                   {t}
                 </button>
               ))}
@@ -967,12 +1042,12 @@ function DemoSection() {
                   style={{ background: "linear-gradient(135deg,#00C2A8,#00DFC8)", boxShadow: "0 6px 28px rgba(0,194,168,0.3)", fontFamily: DM }}>
                   <Download className="w-4 h-4" />Export as PNGs
                 </button>
-                <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.28)", fontFamily: DM }}>
+                <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.55)", fontFamily: DM }}>
                   Full export requires a free account. Download in seconds.
                 </p>
                 <button onClick={generate}
-                  className="text-[12px] underline underline-offset-2 transition-colors hover:text-white/60"
-                  style={{ color: "rgba(255,255,255,0.28)", fontFamily: DM }}>
+                  className="text-[12px] underline underline-offset-2 transition-colors hover:text-white/70"
+                  style={{ color: "rgba(255,255,255,0.52)", fontFamily: DM }}>
                   ↺ Generate again
                 </button>
               </div>
@@ -1007,7 +1082,7 @@ function DemoSection() {
                 </Link>
                 <button onClick={() => setShowPaywall(false)}
                   className="text-xs w-full py-2"
-                  style={{ color: "rgba(255,255,255,0.28)", fontFamily: DM }}>Maybe later</button>
+                  style={{ color: "rgba(255,255,255,0.52)", fontFamily: DM }}>Maybe later</button>
               </motion.div>
             </motion.div>
           )}
@@ -1049,7 +1124,7 @@ function HowItWorks() {
       <div className="max-w-5xl mx-auto">
         <FadeUp>
           <p className="text-[11px] uppercase tracking-[0.28em] font-black mb-4"
-            style={{ color: "rgba(255,255,255,0.22)", fontFamily: DM }}>
+            style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>
             How it works
           </p>
           <h2 className="font-black mb-16"
@@ -1105,7 +1180,7 @@ function HowItWorks() {
 
                 <h3 className="font-black text-xl mb-3" style={{ fontFamily: BG }}>{title}</h3>
                 <p className="text-[14px] leading-relaxed flex-1"
-                  style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}>{desc}</p>
+                  style={{ color: "rgba(255,255,255,0.64)", fontFamily: DM }}>{desc}</p>
               </div>
             </SlideIn>
           ))}
@@ -1185,7 +1260,7 @@ function StatsBand() {
                 </div>
                 <p
                   className="text-[13px] leading-snug"
-                  style={{ color: "rgba(255,255,255,0.32)", fontFamily: DM }}
+                  style={{ color: "rgba(255,255,255,0.58)", fontFamily: DM }}
                 >
                   {label}
                 </p>
@@ -1287,7 +1362,7 @@ function HorizontalProcess() {
       <div className="absolute top-8 left-8 z-10 hidden md:block">
         <p
           className="text-[11px] uppercase tracking-[0.28em] font-black"
-          style={{ color: "rgba(255,255,255,0.16)", fontFamily: DM }}
+          style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}
         >
           How it works
         </p>
@@ -1373,7 +1448,7 @@ function HorizontalProcess() {
                 {/* Body */}
                 <p
                   className="leading-relaxed mb-10"
-                  style={{ fontFamily: DM, fontSize: "1.0625rem", color: "rgba(255,255,255,0.42)", maxWidth: 440 }}
+                  style={{ fontFamily: DM, fontSize: "1.0625rem", color: "rgba(255,255,255,0.65)", maxWidth: 440 }}
                 >
                   {step.body}
                 </p>
@@ -1462,7 +1537,7 @@ function FeaturesBento() {
       <div className="max-w-5xl mx-auto">
         <FadeUp>
           <p className="text-[11px] uppercase tracking-[0.28em] font-black mb-4"
-            style={{ color: "rgba(255,255,255,0.22)", fontFamily: DM }}>Features</p>
+            style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>Features</p>
           <h2 className="font-black mb-16"
             style={{ fontFamily: BG, fontSize: "clamp(2.2rem,5vw,3.8rem)", letterSpacing: "-0.04em" }}>
             Everything you need<br />to post consistently
@@ -1543,7 +1618,7 @@ function FeaturesBento() {
               <div>
                 <Sparkles className="w-6 h-6 mb-4" style={{ color: "#7C3AED" }} />
                 <h3 className="text-xl font-black mb-2" style={{ fontFamily: BG }}>Topic → Carousel in seconds</h3>
-                <p className="text-[14px] leading-relaxed max-w-xl" style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}>
+                <p className="text-[14px] leading-relaxed max-w-xl" style={{ color: "rgba(255,255,255,0.64)", fontFamily: DM }}>
                   Type a topic, paste an article URL, or drop in a YouTube transcript. Claude handles extraction, writing,
                   and formatting. Your only job is deciding what to post.
                 </p>
@@ -1720,7 +1795,7 @@ function Testimonials() {
       <div className="max-w-5xl mx-auto">
         <FadeUp>
           <p className="text-[11px] uppercase tracking-[0.28em] font-black mb-4"
-            style={{ color: "rgba(255,255,255,0.22)", fontFamily: DM }}>
+            style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>
             From creators
           </p>
           <h2 className="font-black mb-16"
@@ -1795,12 +1870,12 @@ function PricingSection() {
         <FadeUp>
           <div className="text-center mb-14">
             <p className="text-[11px] uppercase tracking-[0.28em] font-black mb-4"
-              style={{ color: "rgba(255,255,255,0.22)", fontFamily: DM }}>Pricing</p>
+              style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>Pricing</p>
             <h2 className="font-black mb-3"
               style={{ fontFamily: BG, fontSize: "clamp(2.2rem,5vw,3.8rem)", letterSpacing: "-0.04em" }}>
               Pricing that makes sense
             </h2>
-            <p className="mb-8 text-[15px]" style={{ color: "rgba(255,255,255,0.36)", fontFamily: DM }}>
+            <p className="mb-8 text-[15px]" style={{ color: "rgba(255,255,255,0.62)", fontFamily: DM }}>
               Start free. 3 carousels on us — no card, no catch.
             </p>
 
@@ -1812,7 +1887,7 @@ function PricingSection() {
                   className="relative px-4 py-2 rounded-xl text-[13px] font-medium transition-all"
                   style={{
                     background: billing === b ? "rgba(255,255,255,0.09)" : "transparent",
-                    color: billing === b ? "#fff" : "rgba(255,255,255,0.38)",
+                    color: billing === b ? "#fff" : "rgba(255,255,255,0.56)",
                     fontFamily: DM,
                   }}>
                   {b.charAt(0).toUpperCase() + b.slice(1)}
@@ -1838,7 +1913,7 @@ function PricingSection() {
             </div>
             <div className="flex-1">
               <p className="font-black text-sm text-white" style={{ fontFamily: BG }}>Free — 3 carousels, no card</p>
-              <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}>
+              <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.62)", fontFamily: DM }}>
                 Try every slide format, export PNGs, test all platforms. Free forever.
               </p>
             </div>
@@ -1874,12 +1949,12 @@ function PricingSection() {
                   )}
                   <div className="mb-6">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] mb-2"
-                      style={{ color: "rgba(255,255,255,0.32)", fontFamily: DM }}>{plan.name}</p>
+                      style={{ color: "rgba(255,255,255,0.55)", fontFamily: DM }}>{plan.name}</p>
                     <div className="flex items-baseline gap-1">
                       <span className="font-black" style={{ fontFamily: BG, fontSize: "2.8rem", letterSpacing: "-0.04em" }}>
                         ${price.toFixed(price % 1 === 0 ? 0 : 2)}
                       </span>
-                      <span className="text-sm" style={{ color: "rgba(255,255,255,0.28)", fontFamily: DM }}>/ mo</span>
+                      <span className="text-sm" style={{ color: "rgba(255,255,255,0.52)", fontFamily: DM }}>/ mo</span>
                     </div>
                     {billing !== "monthly" && (
                       <p className="text-xs mt-0.5" style={{ color: plan.accent, fontFamily: DM }}>
@@ -1922,9 +1997,9 @@ function PricingSection() {
         <FadeUp delay={0.2}>
           <div className="rounded-3xl p-8" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <p className="text-[11px] uppercase tracking-[0.28em] font-black mb-2"
-              style={{ color: "rgba(255,255,255,0.22)", fontFamily: DM }}>Pay-per-use</p>
+              style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>Pay-per-use</p>
             <h3 className="font-black mb-1" style={{ fontFamily: BG, fontSize: "1.25rem" }}>Just need a few? Buy credits.</h3>
-            <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.38)", fontFamily: DM }}>
+            <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.60)", fontFamily: DM }}>
               Credits never expire. Stack with any subscription.
             </p>
             <div className="grid grid-cols-3 gap-4">
@@ -1952,7 +2027,7 @@ function PricingSection() {
                     }}>
                     <p className="font-black text-xl text-white mb-0.5" style={{ fontFamily: BG }}>{pack.credits} credits</p>
                     <p className="font-black text-2xl mb-1" style={{ color: "#00C2A8", fontFamily: BG }}>${pack.price}</p>
-                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.32)", fontFamily: DM }}>${pack.priceEach.toFixed(2)} each</p>
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.55)", fontFamily: DM }}>${pack.priceEach.toFixed(2)} each</p>
                     <ChevronRight className="w-4 h-4 mt-3 opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: "#00C2A8" }} />
                   </button>
                 );
@@ -2060,7 +2135,7 @@ function AffiliateWaitlist() {
               style={{ fontFamily: BG, fontSize: "clamp(2.2rem,5.5vw,3.8rem)", letterSpacing: "-0.04em" }}>
               The Inner Circle
             </h2>
-            <p className="mb-10 text-[15px]" style={{ color: "rgba(255,255,255,0.36)", fontFamily: DM }}>
+            <p className="mb-10 text-[15px]" style={{ color: "rgba(255,255,255,0.62)", fontFamily: DM }}>
               25% lifetime commission. No cap. Launching at $25K MRR.
             </p>
             <div className="flex justify-center mb-10"><GreekArt /></div>
@@ -2068,7 +2143,7 @@ function AffiliateWaitlist() {
               {([["25%","lifetime commission"],["$10","min payout"],["∞","no cap, ever"],["Monthly","auto payouts"]] as [string,string][]).map(([val,label]) => (
                 <div key={label} className="text-center">
                   <div className="font-black text-xl mb-0.5" style={{ fontFamily: BG, color: "#C8962A" }}>{val}</div>
-                  <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.28)", fontFamily: DM }}>{label}</div>
+                  <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.52)", fontFamily: DM }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -2080,7 +2155,7 @@ function AffiliateWaitlist() {
                   <Check className="w-5 h-5" style={{ color: "#C8962A" }} />
                 </div>
                 <p className="font-black" style={{ color: "#C8962A", fontFamily: BG }}>You're on the list.</p>
-                <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.32)", fontFamily: DM }}>We'll reach out when we launch.</p>
+                <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.58)", fontFamily: DM }}>We'll reach out when we launch.</p>
               </motion.div>
             ) : (
               <form onSubmit={handleSubmit} className="flex gap-2 max-w-sm mx-auto">
@@ -2150,7 +2225,7 @@ function FinalCTA() {
           <div className="w-16 h-[2px] mx-auto mb-8 rounded-full"
             style={{ background: "linear-gradient(90deg,transparent,#00C2A8,transparent)" }} />
 
-          <p className="mb-12 text-[17px] leading-relaxed" style={{ color: "rgba(255,255,255,0.36)", fontFamily: DM }}>
+          <p className="mb-12 text-[17px] leading-relaxed" style={{ color: "rgba(255,255,255,0.65)", fontFamily: DM }}>
             3 carousels free. No credit card. No catch.
           </p>
 
@@ -2171,7 +2246,7 @@ function FinalCTA() {
             </Link>
           </TwoLayerMagnetic>
 
-          <p className="mt-5 text-[12px]" style={{ color: "rgba(255,255,255,0.18)", fontFamily: DM }}>
+          <p className="mt-5 text-[12px]" style={{ color: "rgba(255,255,255,0.48)", fontFamily: DM }}>
             No credit card required · Instant access
           </p>
         </FadeUp>
@@ -2475,7 +2550,7 @@ export default function LandingPage() {
               {/* Subtitle — line-by-line reveal */}
               <motion.p
                 className="text-[17px] leading-relaxed mb-9"
-                style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM, maxWidth: "520px" }}
+                style={{ color: "rgba(255,255,255,0.68)", fontFamily: DM, maxWidth: "520px" }}
                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.52 }}
               >
@@ -2520,7 +2595,7 @@ export default function LandingPage() {
                     {label}
                   </span>
                 ))}
-                <span className="text-[11px] ml-2" style={{ color: "rgba(255,255,255,0.16)", fontFamily: DM }}>
+                <span className="text-[11px] ml-2" style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>
                   · No credit card required
                 </span>
               </motion.div>
@@ -2655,25 +2730,54 @@ export default function LandingPage() {
       {/* ── Footer — editorial typographic closer ────────────────────────── */}
       {/*
         Award sites end with something memorable — not just "© 2026".
-        A giant Bebas wordmark that owns the bottom of the page.
-        The legal row sits beneath it, minimal and factual.
+        Giant ghost wordmark — each letter rises independently on hover.
+        Technique: Framer Motion whileHover on each <motion.span>, spring physics.
+        Half-hidden: the wordmark is clipped at ~55% height so only the top half
+        peeks out. Hovering a letter raises it above the clip boundary.
       */}
       <footer style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "#030303" }}>
 
-        {/* Oversized wordmark */}
-        <div className="overflow-hidden px-4 pt-16 pb-4">
+        {/* Oversized hover-letter wordmark */}
+        <div className="px-4 pt-12 pb-0" style={{ overflow: "hidden" }}>
           <FadeUp>
+            {/* Clip wrapper — shows only the top ~50% of the letters at rest.
+                Individual letters rise on hover, emerging above the clip line. */}
             <div
-              className="font-black leading-none select-none"
               style={{
-                fontFamily: "var(--font-bebas)",
-                fontSize: "clamp(5rem,18vw,18rem)",
-                color: "transparent",
-                WebkitTextStroke: "1px rgba(255,255,255,0.06)",
-                letterSpacing: "-0.02em",
+                overflow: "hidden",
+                /* Show roughly the top 54% of the giant text */
+                maxHeight: "0.56em",
+                lineHeight: 1,
               }}
             >
-              SCROLLR
+              <div
+                className="leading-none select-none flex"
+                style={{
+                  fontFamily: "var(--font-bebas)",
+                  fontSize: "clamp(5rem,18vw,18rem)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {"SCROLLR".split("").map((char, i) => (
+                  <motion.span
+                    key={i}
+                    style={{
+                      display: "inline-block",
+                      color: "transparent",
+                      WebkitTextStroke: "1px rgba(255,255,255,0.10)",
+                      transformOrigin: "bottom center",
+                    }}
+                    whileHover={{
+                      y: "-22%",
+                      WebkitTextStroke: "1px rgba(255,255,255,0.28)",
+                      color: "transparent",
+                    }}
+                    transition={{ type: "spring", stiffness: 380, damping: 22, mass: 0.8 }}
+                  >
+                    {char}
+                  </motion.span>
+                ))}
+              </div>
             </div>
           </FadeUp>
         </div>
@@ -2695,19 +2799,19 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <p className="font-black text-[13px]" style={{ fontFamily: BG, color: "rgba(255,255,255,0.5)" }}>Scrollr</p>
-                  <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.18)", fontFamily: DM }}>AI Carousel Generator</p>
+                  <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.42)", fontFamily: DM }}>AI Carousel Generator</p>
                 </div>
               </div>
 
               {/* Links */}
-              <div className="flex flex-wrap gap-6 text-[12px]" style={{ color: "rgba(255,255,255,0.22)", fontFamily: DM }}>
+              <div className="flex flex-wrap gap-6 text-[12px]" style={{ color: "rgba(255,255,255,0.50)", fontFamily: DM }}>
                 {["Privacy", "Terms", "Affiliates", "Contact"].map(link => (
-                  <a key={link} href="#" className="transition-colors hover:text-white/45">{link}</a>
+                  <a key={link} href="#" className="transition-colors hover:text-white/70">{link}</a>
                 ))}
               </div>
 
               {/* Copyright */}
-              <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.14)", fontFamily: DM }}>
+              <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.38)", fontFamily: DM }}>
                 © 2026 Scrollr
               </p>
             </div>
