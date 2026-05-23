@@ -262,3 +262,10 @@ html {
   0%, 100% { opacity: 0.2; transform: scaleY(1); }
   50%       { opacity: 0.7; transform: scaleY(0.35); }
 }
+
+/* ─── Footer ghost wordmark — stroke brightens on letter hover ───────────
+   Framer Motion can't animate -webkit-text-stroke (vendor prefix).
+   CSS hover handles the stroke change; Framer handles the Y rise.       */
+.footer-glyph:hover {
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.30) !important;
+}

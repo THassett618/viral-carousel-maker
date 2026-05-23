@@ -2761,17 +2761,15 @@ export default function LandingPage() {
                 {"SCROLLR".split("").map((char, i) => (
                   <motion.span
                     key={i}
+                    className="footer-glyph"
                     style={{
                       display: "inline-block",
                       color: "transparent",
                       WebkitTextStroke: "1px rgba(255,255,255,0.10)",
                       transformOrigin: "bottom center",
+                      transition: "-webkit-text-stroke 0.18s ease",
                     }}
-                    whileHover={{
-                      y: "-22%",
-                      WebkitTextStroke: "1px rgba(255,255,255,0.28)",
-                      color: "transparent",
-                    }}
+                    whileHover={{ y: "-22%" }}
                     transition={{ type: "spring", stiffness: 380, damping: 22, mass: 0.8 }}
                   >
                     {char}
