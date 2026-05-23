@@ -1,80 +1,81 @@
-# Scrollr — Open Items
+# Open Items — Scrollr
 
-Things that need to be done before the app is fully live. Grouped by category.
-
----
-
-## 1. Infrastructure (required before launch)
-
-### Supabase
-- [ ] Run `supabase/migrations/001_subscriptions.sql` against your project
-  - Creates: `subscriptions`, `user_credits`, `credit_transactions`, `referrals`, `referral_commissions`
-  - Adds columns to `profiles`: `stripe_customer_id`, `referral_code`, `referred_by`
-- [ ] Run `supabase/migrations/002_waitlist.sql`
-- [ ] Run `supabase/migrations/003_storage.sql` (creates `reference-images` storage bucket)
-- [ ] Confirm `spend_credit()`, `add_credits()`, `match_reference_images()` RPCs exist
-
-### Stripe
-- [ ] Create 9 subscription products in Stripe Dashboard:
-  - Starter Monthly / Quarterly / Annual → `$12 / $10.80 / $9` per month
-  - Pro Monthly / Quarterly / Annual → `$29 / $26.10 / $22` per month
-  - Agency Monthly / Quarterly / Annual → `$79 / $71.10 / $63` per month
-- [ ] Create 3 credit pack products (one-time):
-  - 5 credits → `$3.99`
-  - 20 credits → `$11.99`
-  - 60 credits → `$29.99`
-- [ ] Copy all 12 price IDs into `.env.local` (see `.env.example` for key names)
-- [ ] Register Stripe webhook endpoint: `https://yourdomain.com/api/webhooks/stripe`
-  - Events to enable: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
-  - Copy signing secret → `STRIPE_WEBHOOK_SECRET`
-
-### Environment variables (`.env.local`)
-- [ ] `NEXT_PUBLIC_SUPABASE_URL`
-- [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- [ ] `SUPABASE_SERVICE_ROLE_KEY`
-- [ ] `ANTHROPIC_API_KEY`
-- [ ] `OPENAI_API_KEY`
-- [ ] `STRIPE_SECRET_KEY`
-- [ ] `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-- [ ] `STRIPE_WEBHOOK_SECRET`
-- [ ] All 12 `STRIPE_PRICE_*` IDs
-- [ ] `NEXT_PUBLIC_APP_URL` (your production domain)
+Design requests, feature backlog, and polish notes. Keep this updated.
 
 ---
 
-## 2. Deploy
+## 🎨 Landing Page — Design
 
-- [ ] Install Vercel CLI: `npm i -g vercel`
-- [ ] `vercel env pull` to sync env vars from Vercel dashboard
-- [ ] `npm run build` — confirm zero TypeScript/build errors locally first
-- [ ] Push to `main` → Vercel auto-deploys
-- [ ] Test Stripe checkout end-to-end in test mode before going live
+### Carousel Style Showcase
+**Priority: High**
+The landing page should display our most popular carousel styles and template variations
+throughout — not just in the showcase strip. Show the full range of what Scrollr can
+generate so visitors understand the product's breadth at a glance.
+
+Ideas for placement:
+- **Hero / DeepCardDeck**: cycle through different slide types (HOOK, STAT, QUOTE, CHECKLIST)
+- **PinnedScene fan**: each of the 5 cards shows a different style variant
+- **Bento features**: use real carousel slide previews as illustrations instead of icons
+- **Dedicated "styles" section**: visual grid of all 8 slide types with real copy examples
+- **ShowcaseStrip**: already varied — add more rare types (BEFORE/AFTER, TIP, BODY)
+
+**Slide types to showcase across the page:**
+| Type | Description |
+|------|-------------|
+| HOOK | Curiosity-gap opening slide |
+| STAT | Big number + supporting context |
+| QUOTE | Attributed pull quote |
+| CHECKLIST | ✓ list format |
+| TIP | Single actionable insight |
+| BEFORE/AFTER | Transformation contrast |
+| CTA | Call-to-action closer |
+| BODY | Multi-paragraph educational slide |
 
 ---
 
-## 3. Code gaps (small, can build anytime)
+## 🐛 Bugs
 
-- [ ] **PNG export** — `CarouselPreview` has an export button but the actual `html-to-canvas` + ZIP download may be a stub. Verify it works; if not, implement with `html2canvas` + `jszip`.
-- [ ] **Referral attribution on signup** — the signup page needs to read `?ref=CODE` from the URL, look up the referrer's user ID, and write `profiles.referred_by` + insert a row into `referrals`. Currently the code column is auto-generated but attribution isn't wired to signup.
-- [ ] **Referral commission trigger** — webhook `handleCheckoutCompleted` adds credits but doesn't yet calculate and insert into `referral_commissions` for the referrer. Needs: look up `profiles.referred_by` → find referral row → insert commission at 10%.
-- [ ] **Affiliate waitlist** — landing page has an `AffiliateWaitlist` section that collects emails. The `/api/waitlist` route saves to Supabase but there's no admin view or email notification.
-- [ ] **Carousel re-open from My Carousels** — the gallery links to `/generate?carousel=ID` but `GeneratePage` doesn't read that param and rehydrate the carousel. Either implement it or remove the `ExternalLink` button.
-- [ ] **`formatDate` on `carousel.createdAt`** — `CarouselSpec` uses `created_at` (snake_case from Supabase) but the carousels page calls `carousel.createdAt` (camelCase). Likely throws at runtime. Fix: use `carousel.created_at`.
+### Signup: "Database error saving new user"
+**Status: Needs schema applied in Supabase**
+Supabase returns this error when `supabase.auth.signUp()` is called but the
+`handle_new_user()` trigger can't write to `profiles` (table doesn't exist yet).
+
+**Fix — run these in order in Supabase Dashboard → SQL Editor:**
+```
+1. supabase/schema.sql
+2. supabase/migrations/001_subscriptions.sql
+3. supabase/migrations/002_waitlist.sql
+4. supabase/migrations/003_storage.sql
+```
+
+All triggers (`handle_new_user`, `handle_new_user_credits`, `handle_new_user_referral_code`)
+and all tables are defined in those files. One-time operation. Signup works immediately after.
+
+### Affiliate Dedicated Page — Missing
+**Status: Page does not exist**
+There is no public-facing `/affiliate` route. The in-app `/referrals` page (requires login)
+exists but there's no marketing page explaining the program pre-signup.
+
+Needs: `app/(marketing)/affiliate/page.tsx` with:
+- Program overview (25% lifetime commission, no cap)
+- How it works (3 steps)
+- Signup / waitlist CTA
+- Social proof / earnings calculator
 
 ---
 
-## 4. Copy / content
+## 🎯 Features Backlog
 
-- [ ] Replace placeholder Stripe price IDs in `app/page.tsx` `PLANS` array (`"price_STARTER_MONTHLY"` etc.) with real IDs once Stripe products are created — OR switch the pricing section CTAs to call `/api/checkout` dynamically using plan name + billing period.
-- [ ] Confirm referral payout terms copy matches whatever you actually implement (currently says "monthly payouts via Stripe once they exceed $10").
-- [ ] Update `NEXT_PUBLIC_APP_URL` in welcome banner / referral link generation (currently falls back to `https://scrollr.ai`).
+- [ ] White/clean LP variant (Podium + Entrepedia aesthetic — warm earth, Inter, eggshell)
+- [ ] Two-LP system: dark premium (current) ↔ clean white — toggle or A/B
+- [ ] Affiliate dedicated public page (`/affiliate`)
+- [ ] Connect actual Claude API to the generate flow end-to-end
 
 ---
 
-## 5. Nice-to-haves (post-launch)
+## 💅 Polish
 
-- [ ] Email confirmation flow after signup (Supabase Auth can send this, just needs SMTP configured)
-- [ ] Carousel editor — allow users to tweak slide text before exporting
-- [ ] Scheduled posting integration (Buffer / Hypefury API)
-- [ ] Analytics dashboard — show which topics + hook angles perform best across users
-- [ ] Team/agency seat management UI
+- [ ] Check remaining low-contrast text in app pages (not just landing)
+- [ ] PinnedScene — verify mobile fallback renders cleanly
+- [ ] Remove any remaining generic "AI slop" design elements
+- [ ] Footer links — wire to real /privacy, /terms pages
