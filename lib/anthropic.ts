@@ -1,7 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-export const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
+let _client: Anthropic | null = null;
+
+export function getAnthropicClient(): Anthropic {
+  if (!_client) {
+    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+  }
+  return _client;
+}
+
+export const anthropic = new Proxy({} as Anthropic, {
+  get(_target, prop) {
+    return getAnthropicClient()[prop as keyof Anthropic];
+  },
 });
 
 export const CAROUSEL_SYSTEM_PROMPT = `You are an expert social media content strategist and viral carousel creator. You specialize in writing carousel content that stops the scroll, gets saved, and drives engagement.
