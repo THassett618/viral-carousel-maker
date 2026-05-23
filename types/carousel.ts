@@ -1,6 +1,7 @@
 export type Platform = "instagram" | "linkedin" | "twitter";
 export type AspectRatio = "4:5" | "1:1" | "9:16" | "16:9";
 export type Theme = "dark" | "light" | "gradient" | "minimal";
+export type TemplateId = "classic" | "fazio" | "impact" | "blaze";
 
 export type SlideType =
   | "hook"
@@ -17,6 +18,7 @@ export interface BrandConfig {
   theme: Theme;
   accent: string;
   font?: string;
+  template?: TemplateId;
 }
 
 export interface BaseSlide {
@@ -112,6 +114,7 @@ export interface GenerateInput {
   accent?: string;
   slideCount?: number;
   brandName?: string;
+  template?: TemplateId;
   referenceImageIds?: string[];
   useLibrary?: boolean;
   // ICP context

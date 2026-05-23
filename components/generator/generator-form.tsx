@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ACCENT_PRESETS } from "@/types/carousel";
 import { cn } from "@/lib/utils";
-import type { GenerateInput, Platform, Theme } from "@/types/carousel";
+import type { GenerateInput, Platform, Theme, TemplateId } from "@/types/carousel";
 import {
   Sparkles,
   Link2,
@@ -43,12 +43,20 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: "minimal", label: "Minimal" },
 ];
 
+const TEMPLATES: { value: TemplateId; label: string; desc: string }[] = [
+  { value: "classic", label: "Classic", desc: "Minimal & clean" },
+  { value: "fazio", label: "Editorial", desc: "Ribbon · Magazine" },
+  { value: "impact", label: "Impact", desc: "Bold · Full-bleed" },
+  { value: "blaze", label: "Blaze", desc: "Dark gradient" },
+];
+
 export function GeneratorForm({ onGenerateHooks, isGeneratingHooks, hasLibrary }: Props) {
   const [mode, setMode] = useState<InputMode>("topic");
   const [topic, setTopic] = useState("");
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [platform, setPlatform] = useState<Platform>("instagram");
+  const [template, setTemplate] = useState<TemplateId>("classic");
   const [theme, setTheme] = useState<Theme>("dark");
   const [accent, setAccent] = useState("#00C2A8");
   const [customAccent, setCustomAccent] = useState("#00C2A8");
@@ -72,6 +80,7 @@ export function GeneratorForm({ onGenerateHooks, isGeneratingHooks, hasLibrary }
       accent,
       slideCount,
       brandName: brandName || undefined,
+      template,
       useLibrary,
       targetAudience: targetAudience || undefined,
       offering: offering || undefined,
@@ -228,6 +237,36 @@ export function GeneratorForm({ onGenerateHooks, isGeneratingHooks, hasLibrary }
             >
               <span className="text-base">{emoji}</span>
               {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Template */}
+      <div className="space-y-2">
+        <Label>Template</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {TEMPLATES.map(({ value, label, desc }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTemplate(value)}
+              className={cn(
+                "py-2.5 px-3 rounded-lg border text-left transition-all",
+                template === value
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50"
+              )}
+            >
+              <div
+                className={cn(
+                  "text-xs font-bold leading-none",
+                  template === value ? "text-primary" : "text-foreground"
+                )}
+              >
+                {label}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1 leading-none">{desc}</div>
             </button>
           ))}
         </div>

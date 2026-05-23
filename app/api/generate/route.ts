@@ -21,6 +21,7 @@ const schema = z.object({
   offering: z.string().optional(),
   goal: z.string().optional(),
   chosenHook: z.string().optional(),
+  template: z.enum(["classic", "fazio", "impact", "blaze"]).optional(),
 });
 
 export async function POST(req: NextRequest) {

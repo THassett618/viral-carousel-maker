@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Bricolage_Grotesque, DM_Sans } from "next/font/google";
+import { Geist, Geist_Mono, Bricolage_Grotesque, DM_Sans, Bebas_Neue } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { LenisProvider } from "@/components/landing/LenisProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +26,12 @@ const dmSans = DM_Sans({
   weight: ["400", "500", "600"],
 });
 
+const bebasNeue = Bebas_Neue({
+  variable: "--font-bebas",
+  subsets: ["latin"],
+  weight: "400",
+});
+
 export const metadata: Metadata = {
   title: "Scrollr — AI Carousel Generator",
   description:
@@ -44,10 +51,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} ${dmSans.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} ${dmSans.variable} ${bebasNeue.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
+        <LenisProvider>
+          {children}
+        </LenisProvider>
         <Toaster position="bottom-right" richColors />
       </body>
     </html>

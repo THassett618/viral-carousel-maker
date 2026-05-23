@@ -149,6 +149,7 @@ export async function generateCarousel(
       name: input.brandName || "Scrollr",
       theme: input.theme,
       accent: input.accent || "#00C2A8",
+      template: input.template,
     },
     slides,
     topic: input.topic,

@@ -72,11 +72,11 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       mode: isOneTime ? "payment" : "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl}/generate?checkout=success&plan=${encodeURIComponent(planName)}`,
+      success_url: `${appUrl}/generate?checkout=success&plan=${encodeURIComponent(planName ?? "")}`,
       cancel_url: `${appUrl}/?checkout=cancelled`,
       metadata: {
         supabase_user_id: user.id,
-        plan_name: planName,
+        plan_name: planName ?? null,
         billing_period: billing ?? "monthly",
         type: type ?? "subscription",
       },
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
             subscription_data: {
               metadata: {
                 supabase_user_id: user.id,
-                plan_name: planName,
+                plan_name: planName ?? null,
                 billing_period: billing ?? "monthly",
               },
             },

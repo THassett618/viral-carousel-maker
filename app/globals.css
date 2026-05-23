@@ -131,6 +131,40 @@
   }
 }
 
+/* ─── Landing page — custom cursor scope ─────────────────────────────────────
+   Apply .landing-page to the outermost wrapper to hide the system cursor
+   only on the marketing page, leaving the SaaS app untouched. */
+.landing-page,
+.landing-page * {
+  cursor: none !important;
+}
+
+/* ─── Smooth scrolling ───────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Selection colour ───────────────────────────────────────────────────── */
+::selection {
+  background: rgba(0, 194, 168, 0.22);
+  color: #fff;
+}
+
+/* ─── Background grid utility ────────────────────────────────────────────── */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+/* Fade out grid toward edges (applied with a mask-image on the element) */
+.bg-grid-fade {
+  -webkit-mask-image: radial-gradient(ellipse 85% 70% at 50% 0%, black 0%, transparent 75%);
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 0%, black 0%, transparent 75%);
+}
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────── */
 @keyframes marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
@@ -144,4 +178,53 @@
 @keyframes glow-pulse {
   0%, 100% { opacity: 0.6; }
   50%       { opacity: 1; }
+}
+
+@keyframes gradient-shift {
+  0%   { background-position: 0%   50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
+}
+
+@keyframes card-float-a {
+  0%, 100% { transform: translateY(0px)   rotate(-10deg) translateZ(-80px); }
+  50%      { transform: translateY(-14px) rotate(-10deg) translateZ(-80px); }
+}
+
+@keyframes card-float-b {
+  0%, 100% { transform: translateY(0px)   rotate(-3deg) translateZ(-30px); }
+  50%      { transform: translateY(-18px) rotate(-3deg) translateZ(-30px); }
+}
+
+@keyframes card-float-c {
+  0%, 100% { transform: translateY(0px)   rotate(4deg); }
+  50%      { transform: translateY(-11px) rotate(4deg); }
+}
+
+/* ─── Magnetic button scale hint ────────────────────────────────────────── */
+.magnetic-btn {
+  will-change: transform;
+  display: inline-flex;
+}
+
+/* ─── Bento card hover lift ─────────────────────────────────────────────── */
+.bento-card-wrap {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.35s ease;
+}
+.bento-card-wrap:hover {
+  transform: translateY(-4px) scale(1.008);
+}
+
+/* ─── Clip-path reveal — sections that unveil like a camera move ─────────── */
+/* GSAP animates clipPath from inset(6%…) to inset(0%…) on scroll.
+   The initial state must exist in CSS so GSAP has a valid starting point. */
+.clip-reveal {
+  will-change: clip-path;
+}
+
+/* ─── Scroll indicator pulse ────────────────────────────────────────────── */
+@keyframes scroll-pulse {
+  0%, 100% { opacity: 0.2; transform: scaleY(1); }
+  50%       { opacity: 0.7; transform: scaleY(0.35); }
 }

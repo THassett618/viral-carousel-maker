@@ -10,6 +10,7 @@ import { ChecklistSlideComponent } from "./checklist-slide";
 import { BeforeAfterSlideComponent } from "./before-after-slide";
 import { TipSlideComponent } from "./tip-slide";
 import { CTASlideComponent } from "./cta-slide";
+import { FazioSlide } from "./templates/fazio-slide";
 
 const RATIO_CLASSES: Record<AspectRatio, string> = {
   "4:5": "aspect-[4/5]",
@@ -31,6 +32,9 @@ export function SlideWrapper({ slide, spec, className, scale = 1 }: SlideWrapper
   const sharedProps = { slide, brand };
 
   const content = () => {
+    if (brand.template === "fazio") {
+      return <FazioSlide slide={slide} brand={brand} />;
+    }
     switch (slide.type) {
       case "hook": return <HookSlideComponent {...sharedProps} slide={slide} />;
       case "body": return <BodySlideComponent {...sharedProps} slide={slide} />;
