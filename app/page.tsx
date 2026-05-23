@@ -253,6 +253,153 @@ function PageIntro({ onDone }: { onDone: () => void }) {
   );
 }
 
+// ─── SiteNav ──────────────────────────────────────────────────────────────────
+// Pill-shaped glass nav + mobile hamburger + clip-path slide-down menu.
+// The mobile overlay uses Framer Motion clipPath "curtain" entrance.
+
+const NAV_LINKS = [
+  ["#features", "Features"],
+  ["#how",      "How it works"],
+  ["#pricing",  "Pricing"],
+] as const;
+
+function SiteNav() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <nav className="fixed top-0 left-0 right-0 z-50 pt-3 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div
+            className="flex items-center justify-between h-12 px-5 rounded-2xl"
+            style={{
+              background: "rgba(5,5,5,0.82)",
+              backdropFilter: "blur(24px)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              boxShadow: "0 4px 28px rgba(0,0,0,0.5)",
+            }}
+          >
+            {/* Logo */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-black font-black text-xs"
+                style={{ background: "linear-gradient(135deg,#00C2A8,#00DFC8)", boxShadow: "0 0 16px rgba(0,194,168,0.4)" }}>
+                S
+              </div>
+              <span className="font-black text-[15px] tracking-tight" style={{ fontFamily: BG }}>Scrollr</span>
+            </div>
+
+            {/* Desktop links */}
+            <div className="hidden md:flex items-center gap-7 text-[13px]" style={{ color: "rgba(255,255,255,0.4)", fontFamily: DM }}>
+              {NAV_LINKS.map(([href, label]) => (
+                <a key={href} href={href} className="hover:text-white transition-colors">{label}</a>
+              ))}
+            </div>
+
+            {/* Desktop CTAs + mobile burger */}
+            <div className="flex items-center gap-1.5">
+              <Link href="/login"
+                className="hidden md:block px-4 py-1.5 text-[13px] transition-colors hover:text-white"
+                style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>
+                Log in
+              </Link>
+              <Link href="/signup"
+                className="hidden md:inline-block px-4 py-1.5 text-[13px] font-black rounded-xl text-black hover:brightness-110 transition-all"
+                style={{ background: "linear-gradient(135deg,#00C2A8,#00DFC8)", fontFamily: DM }}>
+                Start free →
+              </Link>
+
+              {/* Hamburger icon */}
+              <button
+                className="md:hidden flex flex-col justify-center items-center w-8 h-8 gap-[5px]"
+                onClick={() => setOpen(o => !o)}
+                aria-label="Toggle menu"
+                style={{ color: "rgba(255,255,255,0.7)" }}
+              >
+                <motion.div
+                  className="w-5 h-[1.5px] bg-current rounded-full"
+                  animate={open ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                />
+                <motion.div
+                  className="w-5 h-[1.5px] bg-current rounded-full"
+                  animate={open ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
+                  transition={{ duration: 0.2 }}
+                />
+                <motion.div
+                  className="w-5 h-[1.5px] bg-current rounded-full"
+                  animate={open ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="fixed inset-0 md:hidden flex flex-col pt-20 px-6 pb-10"
+            style={{
+              background: "rgba(3,3,3,0.97)",
+              backdropFilter: "blur(32px)",
+              zIndex: 49,
+            }}
+            initial={{ clipPath: "inset(0% 0% 100% 0%)" }}
+            animate={{ clipPath: "inset(0% 0% 0% 0%)" }}
+            exit={{   clipPath: "inset(0% 0% 100% 0%)" }}
+            transition={{ duration: 0.44, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {/* Big link list */}
+            <div className="flex flex-col gap-0 mb-10">
+              {NAV_LINKS.map(([href, label], i) => (
+                <motion.a
+                  key={href} href={href}
+                  className="text-[2.2rem] font-black py-3 border-b tracking-tight"
+                  style={{
+                    fontFamily: BG,
+                    color: "rgba(255,255,255,0.88)",
+                    letterSpacing: "-0.035em",
+                    borderColor: "rgba(255,255,255,0.06)",
+                  }}
+                  initial={{ opacity: 0, x: -28 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.08 + i * 0.07, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                  onClick={() => setOpen(false)}
+                >
+                  {label}
+                </motion.a>
+              ))}
+            </div>
+
+            {/* CTAs */}
+            <motion.div
+              className="mt-auto flex flex-col gap-3"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+            >
+              <Link href="/signup"
+                className="w-full py-4 rounded-2xl font-black text-[16px] text-black text-center"
+                style={{ background: "linear-gradient(135deg,#00C2A8,#00DFC8)", fontFamily: DM }}
+                onClick={() => setOpen(false)}>
+                Start free →
+              </Link>
+              <Link href="/login"
+                className="w-full py-3.5 rounded-2xl text-[14px] text-center"
+                style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.45)", fontFamily: DM }}
+                onClick={() => setOpen(false)}>
+                Log in
+              </Link>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
 // ─── ScrollProgressLine ──────────────────────────────────────────────────────
 // A 2px line at the very top of the viewport that grows from left → right
 // as the user scrolls. Uses Framer Motion scaleX (transform: scaleX).
@@ -2165,40 +2312,8 @@ export default function LandingPage() {
         }} />
       </div>
 
-      {/* ── Nav ─────────────────────────────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 pt-3 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between h-12 px-5 rounded-2xl"
-            style={{
-              background: "rgba(5,5,5,0.82)",
-              backdropFilter: "blur(24px)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              boxShadow: "0 4px 28px rgba(0,0,0,0.5)",
-            }}>
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-black font-black text-xs"
-                style={{ background: "linear-gradient(135deg,#00C2A8,#00DFC8)", boxShadow: "0 0 16px rgba(0,194,168,0.4)" }}>
-                S
-              </div>
-              <span className="font-black text-[15px] tracking-tight" style={{ fontFamily: BG }}>Scrollr</span>
-            </div>
-            <div className="hidden md:flex items-center gap-7 text-[13px]" style={{ color: "rgba(255,255,255,0.4)", fontFamily: DM }}>
-              {[["#features","Features"],["#how","How it works"],["#pricing","Pricing"]].map(([href,label]) => (
-                <a key={href} href={href} className="hover:text-white transition-colors">{label}</a>
-              ))}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Link href="/login" className="px-4 py-1.5 text-[13px] transition-colors hover:text-white"
-                style={{ color: "rgba(255,255,255,0.45)", fontFamily: DM }}>Log in</Link>
-              <Link href="/signup"
-                className="px-4 py-1.5 text-[13px] font-black rounded-xl text-black hover:brightness-110 transition-all"
-                style={{ background: "linear-gradient(135deg,#00C2A8,#00DFC8)", fontFamily: DM }}>
-                Start free →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      {/* ── Nav — glass pill + mobile hamburger overlay ───────────────────── */}
+      <SiteNav />
 
       {/* ── Hero — editorial full-bleed, non-template composition ──────────── */}
       {/*
