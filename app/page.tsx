@@ -3,6 +3,7 @@
 import {
   useState, useRef, useLayoutEffect, useEffect,
 } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   motion, AnimatePresence, useMotionValue, useSpring, useTransform,
@@ -15,8 +16,17 @@ import {
 } from "lucide-react";
 
 import { Cursor } from "@/components/landing/Cursor";
-import { HeroParticles } from "@/components/landing/HeroParticles";
-import { HeroNoiseShader } from "@/components/landing/HeroNoiseShader";
+// Three.js / WebGL components — dynamically imported with ssr:false so they:
+//   a) never run on the server (no window / WebGLContext there)
+//   b) load in a separate chunk, keeping the landing page initial JS minimal
+const HeroParticles = dynamic(
+  () => import("@/components/landing/HeroParticles").then(m => ({ default: m.HeroParticles })),
+  { ssr: false }
+);
+const HeroNoiseShader = dynamic(
+  () => import("@/components/landing/HeroNoiseShader").then(m => ({ default: m.HeroNoiseShader })),
+  { ssr: false }
+);
 import { SplitText, SplitLine } from "@/components/landing/SplitText";
 import { easeExpo, springGentle } from "@/lib/motion";
 
