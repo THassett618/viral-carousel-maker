@@ -109,6 +109,20 @@ Return this exact JSON structure:
 }`;
 }
 
+function extractJson(text: string): string {
+  let raw = text.trim();
+  if (raw.startsWith("```")) {
+    raw = raw.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "").trim();
+  }
+  if (!raw.startsWith("[") && !raw.startsWith("{")) {
+    const arrayMatch = raw.match(/\[[\s\S]*\]/);
+    const objectMatch = raw.match(/\{[\s\S]*\}/);
+    if (arrayMatch) return arrayMatch[0];
+    if (objectMatch) return objectMatch[0];
+  }
+  return raw;
+}
+
 export async function generateCarousel(
   input: GenerateInput,
   referenceContext?: string
@@ -125,13 +139,7 @@ export async function generateCarousel(
   const content = message.content[0];
   if (content.type !== "text") throw new Error("Unexpected response type");
 
-  let raw = content.text.trim();
-  // Strip markdown code fences if present
-  if (raw.startsWith("```")) {
-    raw = raw.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "");
-  }
-
-  const parsed = JSON.parse(raw);
+  const parsed = JSON.parse(extractJson(content.text));
 
   const ratio: AspectRatio = PLATFORM_RATIOS[input.platform];
 
@@ -220,9 +228,7 @@ Return exactly 4 hooks with completely different angles. Each hook must be under
   });
 
   const text = msg.content[0].type === "text" ? msg.content[0].text : "[]";
-  let raw = text.trim();
-  if (raw.startsWith("```")) raw = raw.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "");
-  return JSON.parse(raw) as HookOption[];
+  return JSON.parse(extractJson(text)) as HookOption[];
 }
 
 export async function repurposeCarousel(input: RepurposeInput): Promise<RepurposeOutput> {
