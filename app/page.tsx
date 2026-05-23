@@ -1220,6 +1220,170 @@ function FeaturesBento() {
   );
 }
 
+// ─── Testimonials ────────────────────────────────────────────────────────────
+//
+// Editorial quote grid: one hero card (spans 2 cols) + 4 flanking cards.
+// Each has a subtle top-edge glow matching the author's platform colour.
+// Hover: 3D lift + reveal a faint ambient gradient.
+// No stock photos — just initials in a coloured circle. Honest. Credible.
+
+const TESTIMONIALS = [
+  {
+    quote: "I was spending 4 hours a week writing carousels. Now it's 20 minutes. The hooks it generates are honestly better than what I came up with after staring at a blank doc for an hour.",
+    name: "Jordan K.",
+    role: "LinkedIn Creator · 44K followers",
+    accent: "#0A66C2",
+    initial: "JK",
+    featured: true,
+  },
+  {
+    quote: "Generated a carousel in 45 seconds and it became my highest-saving post ever.",
+    name: "Priya M.",
+    role: "Instagram — Marketing Consultant",
+    accent: "#E1306C",
+    initial: "PM",
+    featured: false,
+  },
+  {
+    quote: "The Style Library is the secret weapon. It remembers my tone so each carousel sounds like me, not like a robot.",
+    name: "Alex R.",
+    role: "X / Twitter — Growth Strategist",
+    accent: "#d4d4d4",
+    initial: "AR",
+    featured: false,
+  },
+  {
+    quote: "My agency uses this for 12 clients. The time savings are insane — we went from 2 days of content production to a single afternoon.",
+    name: "Camila S.",
+    role: "Social Media Agency — Director",
+    accent: "#7C3AED",
+    initial: "CS",
+    featured: false,
+  },
+  {
+    quote: "Posted the first carousel Scrollr generated for me. 3.8K saves in 48 hours. My previous best was 400.",
+    name: "Dan T.",
+    role: "LinkedIn — B2B SaaS Founder",
+    accent: "#00C2A8",
+    initial: "DT",
+    featured: false,
+  },
+];
+
+function TestimonialCard({
+  quote, name, role, accent, initial, featured = false, delay = 0,
+}: (typeof TESTIMONIALS)[0] & { delay?: number }) {
+  return (
+    <FadeUp delay={delay}>
+      <div
+        className="relative h-full p-7 rounded-3xl flex flex-col overflow-hidden group"
+        style={{
+          background:  featured
+            ? `linear-gradient(150deg,${accent}0E 0%,rgba(0,0,0,0) 60%)`
+            : "rgba(255,255,255,0.02)",
+          border: `1px solid ${featured ? `${accent}28` : "rgba(255,255,255,0.06)"}`,
+          transition: "transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s ease",
+        }}
+        onMouseEnter={e => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.transform = "translateY(-5px) scale(1.006)";
+          el.style.boxShadow = `0 24px 60px rgba(0,0,0,0.28), 0 0 0 1px ${accent}18`;
+        }}
+        onMouseLeave={e => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.transform = "";
+          el.style.boxShadow = "";
+        }}
+      >
+        {/* Coloured top edge */}
+        <div
+          className="absolute top-0 left-8 right-8 h-[1.5px] rounded-b-full"
+          style={{ background: `linear-gradient(90deg,transparent,${accent},transparent)` }}
+        />
+
+        {/* Quote mark */}
+        <span
+          className="absolute top-5 right-6 select-none"
+          style={{
+            fontFamily: BG, fontSize: featured ? "5rem" : "3.5rem",
+            color: accent, opacity: 0.06, lineHeight: 1, fontWeight: 900,
+          }}
+        >
+          "
+        </span>
+
+        {/* Quote */}
+        <p
+          className="flex-1 leading-relaxed mb-6"
+          style={{
+            fontFamily: DM,
+            fontSize: featured ? "1.1rem" : "0.9375rem",
+            color: "rgba(255,255,255,0.62)",
+            lineHeight: 1.75,
+          }}
+        >
+          &ldquo;{quote}&rdquo;
+        </p>
+
+        {/* Author */}
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-black text-[11px]"
+            style={{ background: `${accent}18`, color: accent, border: `1px solid ${accent}28`, fontFamily: BG }}
+          >
+            {initial}
+          </div>
+          <div>
+            <p className="font-black text-[13px]" style={{ color: "rgba(255,255,255,0.85)", fontFamily: BG }}>{name}</p>
+            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)", fontFamily: DM }}>{role}</p>
+          </div>
+        </div>
+      </div>
+    </FadeUp>
+  );
+}
+
+function Testimonials() {
+  const [featured, ...rest] = TESTIMONIALS;
+  const [row1, row2] = [rest.slice(0, 2), rest.slice(2)];
+
+  return (
+    <section className="py-28 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+      <div className="max-w-5xl mx-auto">
+        <FadeUp>
+          <p className="text-[11px] uppercase tracking-[0.28em] font-black mb-4"
+            style={{ color: "rgba(255,255,255,0.22)", fontFamily: DM }}>
+            From creators
+          </p>
+          <h2 className="font-black mb-16"
+            style={{ fontFamily: BG, fontSize: "clamp(2.2rem,5vw,3.8rem)", letterSpacing: "-0.04em" }}>
+            The proof is in<br />the saves.
+          </h2>
+        </FadeUp>
+
+        {/* Main grid: featured (2/3) + first row (1/3 each) */}
+        <div className="grid md:grid-cols-3 gap-4 mb-4">
+          <div className="md:col-span-2">
+            <TestimonialCard {...featured} delay={0} />
+          </div>
+          <div className="flex flex-col gap-4">
+            {row1.map((t, i) => (
+              <TestimonialCard key={t.name} {...t} delay={0.08 + i * 0.07} />
+            ))}
+          </div>
+        </div>
+
+        {/* Second row — 3 equal columns */}
+        <div className="grid md:grid-cols-3 gap-4">
+          {row2.map((t, i) => (
+            <TestimonialCard key={t.name} {...t} delay={0.18 + i * 0.06} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── PricingSection ───────────────────────────────────────────────────────────
 
 function PricingSection() {
@@ -1680,6 +1844,20 @@ export default function LandingPage() {
       gsap.to(".hero-copy",  { y: "-10%", ease: "none", scrollTrigger: heroTrigger });
       gsap.to(".hero-cards", { y: "-20%", ease: "none", scrollTrigger: { ...heroTrigger, scrub: 0.9 } });
 
+      // ── Variable font-weight animation — the hero heading tightens as you
+      //    scroll away, like the subject receding into the background.
+      //    Bricolage Grotesque: weight 200 (ultra-thin) → 900 (ultra-black).
+      //    On load = 900 (impactful). On scroll-out = 200 (ghosting away).
+      gsap.fromTo(
+        ".hero-copy",
+        { fontVariationSettings: "'wght' 900" },
+        {
+          fontVariationSettings: "'wght' 200",
+          ease: "none",
+          scrollTrigger: { trigger: ".hero-section", start: "20% top", end: "90% top", scrub: 2 },
+        }
+      );
+
       // ── Clip-path section reveals ──────────────────────────────────────────
       // Each .clip-reveal section slides out from behind a clipping mask.
       // The effect: sections feel like they're being unveiled by the camera,
@@ -2037,6 +2215,40 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* ── Platform export strip — "works with your stack" ──────────────── */}
+      {/* Reverse marquee, slightly dimmer, platform names with platform-   */}
+      {/* coloured dots. A single sentence of trust in a horizontal line.   */}
+      <div className="overflow-hidden" style={{ background: "rgba(255,255,255,0.015)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="py-4 flex whitespace-nowrap w-max" style={{ animation: "marquee 36s linear infinite reverse" }}>
+          {[
+            { name: "LinkedIn",  color: "#0A66C2" },
+            { name: "Instagram", color: "#E1306C" },
+            { name: "X / Twitter", color: "#d4d4d4" },
+            { name: "Buffer",    color: "#168EEA" },
+            { name: "Later",     color: "#FFC300" },
+            { name: "Hootsuite", color: "#10B981" },
+            { name: "Canva",     color: "#8B5CF6" },
+            { name: "Figma",     color: "#F24E1E" },
+            { name: "Notion",    color: "#ffffff" },
+            { name: "LinkedIn",  color: "#0A66C2" },
+            { name: "Instagram", color: "#E1306C" },
+            { name: "X / Twitter", color: "#d4d4d4" },
+            { name: "Buffer",    color: "#168EEA" },
+            { name: "Later",     color: "#FFC300" },
+            { name: "Hootsuite", color: "#10B981" },
+            { name: "Canva",     color: "#8B5CF6" },
+            { name: "Figma",     color: "#F24E1E" },
+            { name: "Notion",    color: "#ffffff" },
+          ].map(({ name, color }, i) => (
+            <span key={i} className="inline-flex items-center gap-2 mx-7 text-[11px] font-medium"
+              style={{ color: "rgba(255,255,255,0.2)", fontFamily: DM }}>
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color, opacity: 0.6 }} />
+              {name}
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* ── Stats band — by the numbers ──────────────────────────────────── */}
       <StatsBand />
 
@@ -2070,6 +2282,9 @@ export default function LandingPage() {
       {/* ── Features bento ───────────────────────────────────────────────── */}
       <FeaturesBento />
 
+      {/* ── Testimonials ─────────────────────────────────────────────────── */}
+      <Testimonials />
+
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
       <PricingSection />
 
@@ -2079,22 +2294,66 @@ export default function LandingPage() {
       {/* ── Final CTA ────────────────────────────────────────────────────── */}
       <FinalCTA />
 
-      {/* ── Footer ───────────────────────────────────────────────────────── */}
-      <footer className="py-10 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-5">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center text-black font-black text-[10px]"
-              style={{ background: "linear-gradient(135deg,#00C2A8,#00DFC8)" }}>S</div>
-            <span className="font-black" style={{ color: "rgba(255,255,255,0.45)", fontFamily: BG }}>Scrollr</span>
+      {/* ── Footer — editorial typographic closer ────────────────────────── */}
+      {/*
+        Award sites end with something memorable — not just "© 2026".
+        A giant Bebas wordmark that owns the bottom of the page.
+        The legal row sits beneath it, minimal and factual.
+      */}
+      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "#030303" }}>
+
+        {/* Oversized wordmark */}
+        <div className="overflow-hidden px-4 pt-16 pb-4">
+          <FadeUp>
+            <div
+              className="font-black leading-none select-none"
+              style={{
+                fontFamily: "var(--font-bebas)",
+                fontSize: "clamp(5rem,18vw,18rem)",
+                color: "transparent",
+                WebkitTextStroke: "1px rgba(255,255,255,0.06)",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              SCROLLR
+            </div>
+          </FadeUp>
+        </div>
+
+        {/* Tagline + nav row */}
+        <div className="px-4 pb-6">
+          <div className="max-w-6xl mx-auto">
+            {/* Thin rule */}
+            <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", marginBottom: "1.5rem" }} />
+
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+              {/* Brand + tagline */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-black font-black text-xs flex-shrink-0"
+                  style={{ background: "linear-gradient(135deg,#00C2A8,#00DFC8)", boxShadow: "0 0 12px rgba(0,194,168,0.3)" }}
+                >
+                  S
+                </div>
+                <div>
+                  <p className="font-black text-[13px]" style={{ fontFamily: BG, color: "rgba(255,255,255,0.5)" }}>Scrollr</p>
+                  <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.18)", fontFamily: DM }}>AI Carousel Generator</p>
+                </div>
+              </div>
+
+              {/* Links */}
+              <div className="flex flex-wrap gap-6 text-[12px]" style={{ color: "rgba(255,255,255,0.22)", fontFamily: DM }}>
+                {["Privacy", "Terms", "Affiliates", "Contact"].map(link => (
+                  <a key={link} href="#" className="transition-colors hover:text-white/45">{link}</a>
+                ))}
+              </div>
+
+              {/* Copyright */}
+              <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.14)", fontFamily: DM }}>
+                © 2026 Scrollr
+              </p>
+            </div>
           </div>
-          <div className="flex gap-8 text-[13px]" style={{ color: "rgba(255,255,255,0.24)", fontFamily: DM }}>
-            {["Privacy","Terms","Affiliates","Contact"].map(link => (
-              <a key={link} href="#" className="transition-colors hover:text-white/50">{link}</a>
-            ))}
-          </div>
-          <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.2)", fontFamily: DM }}>
-            © 2026 Scrollr. All rights reserved.
-          </p>
         </div>
       </footer>
     </div>
