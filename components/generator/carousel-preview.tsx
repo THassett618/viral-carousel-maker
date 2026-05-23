@@ -31,6 +31,9 @@ export function CarouselPreview({ carousel, onRegenerate }: Props) {
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const exportRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const { w: slideW, h: slideH } = SLIDE_DIMENSIONS[carousel.ratio];
 
   const totalSlides = carousel.slides.length;
   const current = carousel.slides[activeIndex];
@@ -41,20 +44,23 @@ export function CarouselPreview({ carousel, onRegenerate }: Props) {
   const exportSlides = useCallback(async () => {
     setExporting(true);
     try {
+      // Fonts must be ready before capturing
+      await document.fonts.ready;
+
       const zip = new JSZip();
       const folder = zip.folder("carousel");
 
       for (let i = 0; i < totalSlides; i++) {
-        setActiveIndex(i);
-        await new Promise((r) => setTimeout(r, 150));
-
-        const el = slideRefs.current[i];
+        const el = exportRefs.current[i];
         if (!el) continue;
 
+        // Slides are already rendered at slideW × slideH — no scaling needed
         const dataUrl = await toPng(el, {
           quality: 1.0,
-          pixelRatio: 2,
+          pixelRatio: 1,
           cacheBust: true,
+          width: slideW,
+          height: slideH,
         });
 
         const base64 = dataUrl.split(",")[1];
@@ -78,7 +84,7 @@ export function CarouselPreview({ carousel, onRegenerate }: Props) {
     } finally {
       setExporting(false);
     }
-  }, [carousel, totalSlides]);
+  }, [carousel, totalSlides, slideW, slideH]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -203,6 +209,30 @@ export function CarouselPreview({ carousel, onRegenerate }: Props) {
           >
             {slide.type.replace("_", " ")}
           </button>
+        ))}
+      </div>
+
+      {/* Hidden full-res export container — all slides rendered at true pixel dimensions */}
+      <div
+        aria-hidden
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          zIndex: -9999,
+          opacity: 0,
+          pointerEvents: "none",
+          width: slideW,
+        }}
+      >
+        {carousel.slides.map((slide, i) => (
+          <div
+            key={slide.id}
+            ref={(el) => { exportRefs.current[i] = el; }}
+            style={{ width: slideW, height: slideH, overflow: "hidden" }}
+          >
+            <SlideWrapper slide={slide} spec={carousel} className="rounded-none" />
+          </div>
         ))}
       </div>
     </div>
