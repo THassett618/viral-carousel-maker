@@ -249,7 +249,7 @@ export function GeneratorForm({ onGenerate, isGenerating, hasLibrary }: Props) {
                 <Label>Slide Count</Label>
                 <Select
                   value={String(slideCount)}
-                  onValueChange={(v) => setSlideCount(parseInt(v))}
+                  onValueChange={(v) => v && setSlideCount(parseInt(v))}
                 >
                   <SelectTrigger className="text-sm">
                     <SelectValue />

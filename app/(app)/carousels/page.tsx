@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/utils";
@@ -57,12 +57,10 @@ export default function CarouselsPage() {
               All your generated carousels, ready to re-export
             </p>
           </div>
-          <Button asChild className="gap-2">
-            <Link href="/generate">
-              <Sparkles className="w-4 h-4" />
-              New Carousel
-            </Link>
-          </Button>
+          <Link href="/generate" className={buttonVariants({ className: "gap-2" })}>
+            <Sparkles className="w-4 h-4" />
+            New Carousel
+          </Link>
         </div>
 
         {loading ? (
@@ -82,12 +80,10 @@ export default function CarouselsPage() {
                 Generate your first carousel to see it here
               </p>
             </div>
-            <Button asChild className="gap-2 mt-2">
-              <Link href="/generate">
-                <Sparkles className="w-4 h-4" />
-                Generate now
-              </Link>
-            </Button>
+            <Link href="/generate" className={buttonVariants({ className: "gap-2 mt-2" })}>
+              <Sparkles className="w-4 h-4" />
+              Generate now
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

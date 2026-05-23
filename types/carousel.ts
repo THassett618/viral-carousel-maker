@@ -113,6 +113,7 @@ export interface GenerateInput {
   slideCount?: number;
   brandName?: string;
   referenceImageIds?: string[];
+  useLibrary?: boolean;
 }
 
 export interface GenerateResponse {

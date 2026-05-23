@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Sparkles,
   Zap,
@@ -113,12 +114,18 @@ export default function LandingPage() {
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" asChild className="text-white/70 hover:text-white hover:bg-white/5">
-              <Link href="/login">Log in</Link>
-            </Button>
-            <Button size="sm" asChild className="bg-[#00C2A8] text-black hover:bg-[#00D4BA] font-bold">
-              <Link href="/signup">Start free</Link>
-            </Button>
+            <Link
+              href="/login"
+              className="px-3 py-1.5 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/signup"
+              className="px-3 py-1.5 text-sm font-bold rounded-lg bg-[#00C2A8] text-black hover:bg-[#00D4BA] transition-colors"
+            >
+              Start free
+            </Link>
           </div>
         </div>
       </nav>
@@ -151,19 +158,19 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Button
-              size="lg"
-              asChild
-              className="bg-[#00C2A8] text-black hover:bg-[#00D4BA] font-bold px-8 gap-2 text-base"
+            <Link
+              href="/signup"
+              className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-base bg-[#00C2A8] text-black hover:bg-[#00D4BA] transition-colors"
             >
-              <Link href="/signup">
-                <Sparkles className="w-4 h-4" />
-                Generate your first carousel free
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg" asChild className="border-white/10 text-white/70 hover:bg-white/5 hover:text-white">
-              <a href="#how">See how it works</a>
-            </Button>
+              <Sparkles className="w-4 h-4" />
+              Generate your first carousel free
+            </Link>
+            <a
+              href="#how"
+              className="flex items-center gap-2 px-8 py-3 rounded-xl font-medium text-base border border-white/10 text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+            >
+              See how it works
+            </a>
           </div>
 
           <p className="text-xs text-white/30 mt-4">
@@ -305,12 +312,13 @@ export default function LandingPage() {
               <br /><br />
               <strong className="text-white">The more you upload, the better it gets.</strong>
             </p>
-            <Button asChild className="bg-[#00C2A8] text-black hover:bg-[#00D4BA] font-bold gap-2">
-              <Link href="/signup">
-                Build your style library
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </Button>
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-[#00C2A8] text-black hover:bg-[#00D4BA] transition-colors"
+            >
+              Build your style library
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       </section>
@@ -355,16 +363,17 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  asChild
-                  className={`w-full font-bold ${
+                <Link
+                  href="/signup"
+                  className={cn(
+                    "w-full block text-center py-2.5 px-4 rounded-xl font-bold text-sm transition-colors",
                     highlight
                       ? "bg-[#00C2A8] text-black hover:bg-[#00D4BA]"
                       : "bg-white/5 text-white hover:bg-white/10 border border-white/10"
-                  }`}
+                  )}
                 >
-                  <Link href="/signup">{cta}</Link>
-                </Button>
+                  {cta}
+                </Link>
               </div>
             ))}
           </div>
@@ -382,16 +391,13 @@ export default function LandingPage() {
           <p className="text-white/50 mb-8 text-lg">
             Your first 5 carousels are free. No card required.
           </p>
-          <Button
-            size="lg"
-            asChild
-            className="bg-[#00C2A8] text-black hover:bg-[#00D4BA] font-bold px-10 gap-2 text-base"
+          <Link
+            href="/signup"
+            className="inline-flex items-center gap-2 px-10 py-3.5 rounded-xl font-bold text-base bg-[#00C2A8] text-black hover:bg-[#00D4BA] transition-colors"
           >
-            <Link href="/signup">
-              <Sparkles className="w-4 h-4" />
-              Generate for free
-            </Link>
-          </Button>
+            <Sparkles className="w-4 h-4" />
+            Generate for free
+          </Link>
         </div>
       </section>
 
